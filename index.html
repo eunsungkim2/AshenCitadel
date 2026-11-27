@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>잿빛성체</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <section id="home" class="home">
+    <div class="title-scene" aria-hidden="true">
+      <div class="gem-orbit"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <canvas id="titleArt" width="720" height="470"></canvas>
+    </div>
+    <div class="home-card">
+      <h1>잿빛성체</h1>
+      <button id="play" class="primary">게임 시작</button>
+      <button id="homeLegacy">계승</button>
+      <button id="options">옵션</button>
+      <button id="homeCodex">악마 · 적 도감</button>
+      <button id="homeRecords">플레이 기록</button>
+    </div>
+  </section>
+  <header id="gameHeader" hidden>
+    <h1>잿빛성체</h1>
+    <div class="stats">
+      <div>라운드 <strong id="round"></strong></div><div>내구도 <strong id="life"></strong></div>
+      <div>영혼 <strong id="gold"></strong></div><div>처치 <strong id="kills"></strong></div>
+    </div>
+    <button id="legacy">계승</button>
+  </header>
+  <main id="gameScreen" hidden>
+    <section class="battle" aria-label="전투">
+      <div class="controls">
+        <button id="wave" class="primary">웨이브 시작</button>
+        <button id="researchSkill" hidden aria-keyshortcuts="H">공허 파동 · H</button>
+        <label><input type="checkbox" id="auto"> 자동 시작</label>
+        <label>속도 <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label>
+        <label><input type="checkbox" id="sound"> 공격 효과음</label>
+        <span class="keys"><kbd>Q</kbd> 구매 <kbd>W</kbd> 배치 <kbd>E</kbd> 판매 <kbd>R</kbd> 합성 <kbd>F</kbd> 파견 <kbd>G</kbd> 복귀</span>
+        <span class="keys">Ctrl+휠 확대 · 확대 후 왼쪽 드래그 이동</span>
+      </div>
+      <p id="wavePreview" class="wave-preview" aria-live="polite"></p>
+      <div class="map"><div class="board-surface"><canvas id="boardGround" aria-hidden="true"></canvas><canvas id="board" width="680" height="680" aria-label="9개 블럭 전장 · Ctrl+휠 확대, 확대 후 왼쪽 드래그로 이동"></canvas></div>
+        <div id="phase" class="phase"></div>
+        <div id="towerTooltip" role="tooltip" hidden></div>
+      </div>
+      <p id="notice" role="status" aria-live="polite"></p>
+    </section>
+    <aside>
+      <section class="panel"><details name="side-panel" id="summonPanel"><summary>악마 소환 · 보상 배치</summary><button id="draw" class="primary wide" aria-keyshortcuts="Q"></button><p id="drawHint"></p><p id="odds"></p><div id="reserve"></div><button id="place" aria-keyshortcuts="W">보상 악마 배치 · W</button></details></section>
+      <section class="panel"><details name="side-panel" id="towerPanel"><summary id="towerSummary">선택한 타워</summary><div id="selected"></div><div id="actions"></div><div id="unitStats"></div></details></section>
+      <section class="panel"><details name="side-panel"><summary>악마 · 적 도감</summary><div id="codexAnchor"><div id="codexContent"><label>악마 <select id="codexUnit"></select></label><p id="codexDiscovery"></p><div id="codexStats"></div><details><summary id="enemyCount">만난 적</summary><ul id="enemyCodex"></ul></details></div></div></details></section>
+      <section class="panel"><details name="side-panel"><summary>지정 조합</summary><div id="recipes"></div></details></section>
+      <section class="panel"><details name="side-panel"><summary>미션</summary><div id="activeMissions"></div><div id="missions"></div></details></section>
+      <section class="panel"><details name="side-panel"><summary>유물</summary><div id="relics"></div></details></section>
+      <section class="panel"><details name="side-panel"><summary>선택권 · 도박</summary><div id="tickets" class="chips"></div><button id="gamble">심연 도박 · 영혼 30</button><p id="gambleResult" role="status"></p><details><summary>도박 확률</summary><ul id="gambleOdds"></ul></details></details></section>
+    </aside>
+    <section class="panel event-zone" aria-label="특수 보스 구역">
+      <h2>특수 보스 구역</h2><canvas id="eventArena" width="168" height="88" aria-label="파견 악마와 특수 보스"></canvas>
+      <p id="eventInfo"></p><div id="eventActions"><button id="sendEvent" aria-keyshortcuts="F">파견 · F</button><button id="recallEvent" aria-keyshortcuts="G">복귀 · G</button></div>
+    </section>
+  </main>
+  <dialog id="dialog"><h2 id="dialogTitle"></h2><div id="dialogBody"></div></dialog>
+</body>
+</html>
