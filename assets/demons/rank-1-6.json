@@ -1,0 +1,470 @@
+[
+  {
+    "star": 1,
+    "identity": 0,
+    "name": "화염귀 1성",
+    "file": "rank-1/00.png"
+  },
+  {
+    "star": 1,
+    "identity": 1,
+    "name": "서리귀 1성",
+    "file": "rank-1/01.png"
+  },
+  {
+    "star": 1,
+    "identity": 2,
+    "name": "폭뢰귀 1성",
+    "file": "rank-1/02.png"
+  },
+  {
+    "star": 1,
+    "identity": 3,
+    "name": "탐욕귀 1성",
+    "file": "rank-1/03.png"
+  },
+  {
+    "star": 1,
+    "identity": 4,
+    "name": "저주귀 1성",
+    "file": "rank-1/04.png"
+  },
+  {
+    "star": 1,
+    "identity": 5,
+    "name": "불씨 임프 1성",
+    "file": "rank-1/05.png"
+  },
+  {
+    "star": 1,
+    "identity": 6,
+    "name": "안개귀 1성",
+    "file": "rank-1/06.png"
+  },
+  {
+    "star": 1,
+    "identity": 7,
+    "name": "전류귀 1성",
+    "file": "rank-1/07.png"
+  },
+  {
+    "star": 1,
+    "identity": 8,
+    "name": "주화 임프 1성",
+    "file": "rank-1/08.png"
+  },
+  {
+    "star": 1,
+    "identity": 9,
+    "name": "주술 임프 1성",
+    "file": "rank-1/09.png"
+  },
+  {
+    "star": 1,
+    "identity": 10,
+    "name": "균열귀 1성",
+    "file": "rank-1/10.png"
+  },
+  {
+    "star": 1,
+    "identity": 11,
+    "name": "공허의 파편 1성",
+    "file": "rank-1/11.png"
+  },
+  {
+    "star": 1,
+    "identity": 12,
+    "name": "심연 추적자 1성",
+    "file": "rank-1/12.png"
+  },
+  {
+    "star": 1,
+    "identity": 13,
+    "name": "망각의 사도 1성",
+    "file": "rank-1/13.png"
+  },
+  {
+    "star": 2,
+    "identity": 0,
+    "name": "핏빛 사냥꾼 2성",
+    "file": "rank-2/00.png"
+  },
+  {
+    "star": 2,
+    "identity": 1,
+    "name": "빙결 마녀 2성",
+    "file": "rank-2/01.png"
+  },
+  {
+    "star": 2,
+    "identity": 2,
+    "name": "쇄도의 악령 2성",
+    "file": "rank-2/02.png"
+  },
+  {
+    "star": 2,
+    "identity": 3,
+    "name": "황금 악령 2성",
+    "file": "rank-2/03.png"
+  },
+  {
+    "star": 2,
+    "identity": 4,
+    "name": "밤의 사제 2성",
+    "file": "rank-2/04.png"
+  },
+  {
+    "star": 2,
+    "identity": 5,
+    "name": "용암 발톱 2성",
+    "file": "rank-2/05.png"
+  },
+  {
+    "star": 2,
+    "identity": 6,
+    "name": "안개의 추적자 2성",
+    "file": "rank-2/06.png"
+  },
+  {
+    "star": 2,
+    "identity": 7,
+    "name": "번개의 망령 2성",
+    "file": "rank-2/07.png"
+  },
+  {
+    "star": 2,
+    "identity": 8,
+    "name": "황금 감시자 2성",
+    "file": "rank-2/08.png"
+  },
+  {
+    "star": 2,
+    "identity": 9,
+    "name": "혼령 사제 2성",
+    "file": "rank-2/09.png"
+  },
+  {
+    "star": 2,
+    "identity": 10,
+    "name": "균열술사 2성",
+    "file": "rank-2/10.png"
+  },
+  {
+    "star": 2,
+    "identity": 11,
+    "name": "공허의 파편 2성",
+    "file": "rank-2/11.png"
+  },
+  {
+    "star": 2,
+    "identity": 12,
+    "name": "심연 추적자 2성",
+    "file": "rank-2/12.png"
+  },
+  {
+    "star": 2,
+    "identity": 13,
+    "name": "망각의 사도 2성",
+    "file": "rank-2/13.png"
+  },
+  {
+    "star": 3,
+    "identity": 0,
+    "name": "심연 집행자 3성",
+    "file": "rank-3/00.png"
+  },
+  {
+    "star": 3,
+    "identity": 1,
+    "name": "혹한의 파수꾼 3성",
+    "file": "rank-3/01.png"
+  },
+  {
+    "star": 3,
+    "identity": 2,
+    "name": "뇌옥의 집행관 3성",
+    "file": "rank-3/02.png"
+  },
+  {
+    "star": 3,
+    "identity": 3,
+    "name": "금고의 지배자 3성",
+    "file": "rank-3/03.png"
+  },
+  {
+    "star": 3,
+    "identity": 4,
+    "name": "심연의 예언자 3성",
+    "file": "rank-3/04.png"
+  },
+  {
+    "star": 3,
+    "identity": 5,
+    "name": "용광로 사냥꾼 3성",
+    "file": "rank-3/05.png"
+  },
+  {
+    "star": 3,
+    "identity": 6,
+    "name": "백무 수호자 3성",
+    "file": "rank-3/06.png"
+  },
+  {
+    "star": 3,
+    "identity": 7,
+    "name": "감전 사냥꾼 3성",
+    "file": "rank-3/07.png"
+  },
+  {
+    "star": 3,
+    "identity": 8,
+    "name": "보물 약탈자 3성",
+    "file": "rank-3/08.png"
+  },
+  {
+    "star": 3,
+    "identity": 9,
+    "name": "몽환의 무녀 3성",
+    "file": "rank-3/09.png"
+  },
+  {
+    "star": 3,
+    "identity": 10,
+    "name": "공명 파수꾼 3성",
+    "file": "rank-3/10.png"
+  },
+  {
+    "star": 3,
+    "identity": 11,
+    "name": "공허의 파편 3성",
+    "file": "rank-3/11.png"
+  },
+  {
+    "star": 3,
+    "identity": 12,
+    "name": "심연 추적자 3성",
+    "file": "rank-3/12.png"
+  },
+  {
+    "star": 3,
+    "identity": 13,
+    "name": "망각의 사도 3성",
+    "file": "rank-3/13.png"
+  },
+  {
+    "star": 4,
+    "identity": 0,
+    "name": "재앙군주 4성",
+    "file": "rank-4/00.png"
+  },
+  {
+    "star": 4,
+    "identity": 1,
+    "name": "백야의 마왕 4성",
+    "file": "rank-4/01.png"
+  },
+  {
+    "star": 4,
+    "identity": 2,
+    "name": "천둥군주 4성",
+    "file": "rank-4/02.png"
+  },
+  {
+    "star": 4,
+    "identity": 3,
+    "name": "부의 대공 4성",
+    "file": "rank-4/03.png"
+  },
+  {
+    "star": 4,
+    "identity": 4,
+    "name": "검은 교황 4성",
+    "file": "rank-4/04.png"
+  },
+  {
+    "star": 4,
+    "identity": 5,
+    "name": "적철 기사 4성",
+    "file": "rank-4/05.png"
+  },
+  {
+    "star": 4,
+    "identity": 6,
+    "name": "결빙 기사 4성",
+    "file": "rank-4/06.png"
+  },
+  {
+    "star": 4,
+    "identity": 7,
+    "name": "뇌광 기사 4성",
+    "file": "rank-4/07.png"
+  },
+  {
+    "star": 4,
+    "identity": 8,
+    "name": "금고 관리인 4성",
+    "file": "rank-4/08.png"
+  },
+  {
+    "star": 4,
+    "identity": 9,
+    "name": "심연의 주술사 4성",
+    "file": "rank-4/09.png"
+  },
+  {
+    "star": 4,
+    "identity": 10,
+    "name": "균열의 대행자 4성",
+    "file": "rank-4/10.png"
+  },
+  {
+    "star": 5,
+    "identity": 0,
+    "name": "화염의 집행장 5성",
+    "file": "rank-5/00.png"
+  },
+  {
+    "star": 5,
+    "identity": 1,
+    "name": "서리의 지배자 5성",
+    "file": "rank-5/01.png"
+  },
+  {
+    "star": 5,
+    "identity": 2,
+    "name": "뇌옥의 우두머리 5성",
+    "file": "rank-5/02.png"
+  },
+  {
+    "star": 5,
+    "identity": 3,
+    "name": "황금의 총독 5성",
+    "file": "rank-5/03.png"
+  },
+  {
+    "star": 5,
+    "identity": 4,
+    "name": "황혼의 대사제 5성",
+    "file": "rank-5/04.png"
+  },
+  {
+    "star": 5,
+    "identity": 5,
+    "name": "홍련 집행관 5성",
+    "file": "rank-5/05.png"
+  },
+  {
+    "star": 5,
+    "identity": 6,
+    "name": "빙하의 사령관 5성",
+    "file": "rank-5/06.png"
+  },
+  {
+    "star": 5,
+    "identity": 7,
+    "name": "검은 뇌광 5성",
+    "file": "rank-5/07.png"
+  },
+  {
+    "star": 5,
+    "identity": 8,
+    "name": "황금 계약자 5성",
+    "file": "rank-5/08.png"
+  },
+  {
+    "star": 5,
+    "identity": 9,
+    "name": "꿈의 계약자 5성",
+    "file": "rank-5/09.png"
+  },
+  {
+    "star": 5,
+    "identity": 10,
+    "name": "균열 지휘관 5성",
+    "file": "rank-5/10.png"
+  },
+  {
+    "star": 5,
+    "identity": 11,
+    "name": "지옥 불꽃의 검 5성",
+    "file": "rank-5/11.png"
+  },
+  {
+    "star": 5,
+    "identity": 12,
+    "name": "서리 심장의 기사 5성",
+    "file": "rank-5/12.png"
+  },
+  {
+    "star": 5,
+    "identity": 13,
+    "name": "폭풍의 단죄자 5성",
+    "file": "rank-5/13.png"
+  },
+  {
+    "star": 5,
+    "identity": 14,
+    "name": "황금 성역의 수호자 5성",
+    "file": "rank-5/14.png"
+  },
+  {
+    "star": 5,
+    "identity": 15,
+    "name": "황혼의 예언자 5성",
+    "file": "rank-5/15.png"
+  },
+  {
+    "star": 5,
+    "identity": 16,
+    "name": "균형의 심판자 5성",
+    "file": "rank-5/16.png"
+  },
+  {
+    "star": 6,
+    "identity": 0,
+    "name": "분노의 집행관 6성",
+    "file": "rank-6/00.png"
+  },
+  {
+    "star": 6,
+    "identity": 1,
+    "name": "나태의 수호자 6성",
+    "file": "rank-6/01.png"
+  },
+  {
+    "star": 6,
+    "identity": 2,
+    "name": "교만의 전령 6성",
+    "file": "rank-6/02.png"
+  },
+  {
+    "star": 6,
+    "identity": 3,
+    "name": "탐욕의 집사 6성",
+    "file": "rank-6/03.png"
+  },
+  {
+    "star": 6,
+    "identity": 4,
+    "name": "색욕의 사제 6성",
+    "file": "rank-6/04.png"
+  },
+  {
+    "star": 6,
+    "identity": 5,
+    "name": "폭식의 포식자 6성",
+    "file": "rank-6/05.png"
+  },
+  {
+    "star": 6,
+    "identity": 6,
+    "name": "질투의 망령 6성",
+    "file": "rank-6/06.png"
+  },
+  {
+    "star": 6,
+    "identity": 7,
+    "name": "공허 군주 녹스 6성",
+    "file": "rank-6/07.png"
+  }
+]
