@@ -1085,7 +1085,12 @@ function renderRecipes() {
       portrait.className='recipe-portrait';
       portrait.width=48; portrait.height=48;
       portrait.setAttribute('aria-hidden','true');
-      drawDemon(portrait.getContext('2d'),recipeTower(star,identity),24,40,2,true);
+      const paintPortrait=()=>{
+        const context=portrait.getContext('2d');
+        context.clearRect(0,0,48,48);
+        drawDemon(context,recipeTower(star,identity),24,40,2,true);
+      };
+      paintPortrait();
       const materials=requirements(star,identity).map(([tier,type])=>{
         const material=document.createElement('li');
         material.className='recipe-material';
@@ -1105,7 +1110,7 @@ function renderRecipes() {
       row.append(portrait,description);
       if(isSpecial(star,identity)) row.classList.add('special-recipe');
       details.append(row);
-      entries[identity]={action,row,status,materials,progress};
+      entries[identity]={action,row,status,materials,progress,paintPortrait};
     }
     container.append(details);
     recipeButtons.set(star,entries);
@@ -1199,8 +1204,14 @@ function renderUI() {
     enemyList.replaceChildren(...[...encounters].map(key=>{
       const entry=document.createElement('li');
       const [kind,id]=key.split(':');
-      entry.textContent=kind==='boss'?'보스 · '+bossPatterns[id].label:kind==='event'?'특수 보스 · '+eventChallenges[id].name:
-        kind==='quest'?'엘리트 · '+activeMissions[id].name:enemyTypes[kind].label;
+      const type=kind==='quest'?activeMissions[id].type:kind;
+      const sprite=angelSprite(type);
+      const icon=document.createElement('canvas');
+      icon.width=32; icon.height=28;
+      icon.setAttribute('aria-hidden','true');
+      drawAngel(icon.getContext('2d'),type,16-sprite[0].length,14-sprite.length,2);
+      entry.append(icon,document.createTextNode(kind==='boss'?'보스 · '+bossPatterns[id].label:kind==='event'?'특수 보스 · '+eventChallenges[id].name:
+        kind==='quest'?'엘리트 · '+activeMissions[id].name:enemyTypes[kind].label));
       return entry;
     }));
   }
@@ -1460,7 +1471,43 @@ function makeDemonArt(unit,silhouette) {
   edge.globalCompositeOperation='source-over';edge.drawImage(canvas,0,0);
   return outlined;
 }
+const demonImages=new Map();
+const sinSpriteNames=['wrath','sloth','pride','greed','lust','gluttony','envy'];
+
+function loadDemonImages() {
+  for(let star=1;star<=maxStar;star++) {
+    const count=star===7?sinSpriteNames.length:identityCount(star);
+    for(let identity=0;identity<count;identity++) {
+      const key=recipeKey(star,identity);
+      const filename=identity===0?String(star):star+'-'+identity;
+      const path=star===7?sinSpriteNames[identity]:`rank-${star}/${filename}`;
+      const image=new Image();
+      demonImages.set(key,image);
+      image.onload=()=>{
+        demonCache.delete(key);
+        recipeButtons.get(star)?.[identity]?.paintPortrait();
+        delete $('unitStats').dataset.unit;
+        delete $('codexStats').dataset.unit;
+        mark();
+      };
+      image.src='assets/demons/'+path+'.png';
+    }
+  }
+}
+
 function drawDemon(context,unit,x,y,scale,silhouette=false) {
+  const image=demonImages.get(recipeKey(unit.star,unit.identity));
+  if(image?.naturalWidth) {
+    const size=44*scale/3;
+    const foot=unit.star===7?size:size*122/128;
+    context.save();
+    context.imageSmoothingEnabled=false;
+    if(silhouette) context.filter='brightness(0) invert(24%) sepia(19%) saturate(800%)';
+    context.drawImage(image,x-size/2,y-foot,size,size);
+    context.restore();
+    return;
+  }
+
   const key=recipeKey(unit.star,unit.identity)+':'+silhouette;
   if(!portraitArt.has(key)) portraitArt.set(key,makeDemonArt(unit,silhouette));
   const dot=scale/3;
@@ -1591,10 +1638,17 @@ const project=(x,y)=>({x:boardLeft+x*tileScale,y:boardTop+y*tileScale});
 const portalSprite=['....oo....','..oaaaao..','.oaaccaao.','oacbbbcaoo','oacbhhcaoo','oacbhhcaoo','oacbbbcaao','.oacccaao.','..oooooo..'];
 const castleSprite=['oo..oo..oo','oo..oo..oo','oaooaaooao','oahhaahhao','oaaaccaaao','oaacbbcaao','oaabbbaaao','oooooooooo'];
 const enemySprites={
-  normal:['...oo.oo...','..ohohho...','..ohchco...','...ohhho...','..oabbaoo..','.oahbaoaao.','.oaobbaoa..','...oaaao...','...oo.oo...'],
-  mission:['....acc....','..oaaaaao..','..ocahcao..','...ohhho...','..oabbbao..','.oaaabbbaao','oaobacbaoao','...obabo...','...oo.oo...'],
-  boss:['a...........a','aa.........aa','oaa..ooo..aao','.oaoahhhaoao.','..oahchchao..','.oobahhhaboo.','oaaobahaboaao','oaaoabcaboaao','oaobacacboaoo','.ooabbbbabo..','..oabbbbao...','..oaaooaao..','..ooo..ooo...']
+  normal:['....ccc....','...c...c...','....ooo....','a..ohhho..a','aa.ohcho.aa','aha.obooaha','aahaabaaaha','.aabbbbaa..','..aabbaa...','...obobo...','..oo...oo..'],
+  mission:['....ccccc....','...c.....c...','.....ooo.....','a...ohhho...a','aa..ohcho..aa','aha..obo..aha','aahaaabaaahaa','.aahaabaaaha.','..aaababa....','...obbbbo....','...ob..bo....','..ooo..ooo...'],
+  boss:['.....ccccc.....','....c.....c....','a.....ccc.....a','aa...ohhho...aa','aha..ohcho..aha','aaha..obo..ahaa','aahaaabaaaahaaa','.aahaabbbaahaa.','..aahaababaa...','...aaabcbba....','....obbbbbo....','....obb.bbo....','...ooo...ooo...'],
 };
+const angelColors={normal:'#d4bc81',swift:'#b2d9ef',tank:'#a8b5d2',swarm:'#e2bdd8',mission:'#e8be6b',boss:'#f0cf83',event:'#b7d8ed'};
+function angelSprite(type) {
+  return enemySprites[type==='event'?'boss':type] || enemySprites.normal;
+}
+function drawAngel(context,type,x,y,scale,accent=angelColors[type]) {
+  drawPixels(context,angelSprite(type),{o:'#252139',a:accent,b:'#66547d',c:'#fff0ad',h:'#faf1dd'},x,y,scale);
+}
 function paintEffect(shot) {
   const {to,from,effect,role,support,time,burstRadius}=shot;
   const p=project(to.x,to.y);
@@ -1809,13 +1863,13 @@ function paintBoard(now) {
       for(let i=0;i<unit.star;i++) ctx.fillRect(x-2*unit.star+i*4,y+15,3,3);
     } else {
       const scale=enemy.boss?4:enemy.type==='tank'?3:2;
-      const sprite=enemy.boss?enemySprites.boss:enemy.mission?enemySprites.mission:enemySprites.normal;
+      const type=enemy.boss?'boss':enemy.type;
+      const sprite=angelSprite(type);
       const stride=enemy.stun>0?0:Math.round(Math.sin(enemy.progress*9)*(enemy.boss?2:1.5));
       const width=scale*sprite[0].length, top=y-Math.round(scale*sprite.length*.65)+stride, left=x-Math.floor(width/2);
       const a=enemy.stun>0?'#f7dd93':enemy.slow>0?'#679ac1':enemy.shield>0?'#9de5ed':
-        enemy.pattern===1&&enemy.patternTriggered?'#e95569':enemy.boss?'#a952b9':enemy.mission?'#e3b654':
-        enemy.type==='swift'?'#8bc88b':enemy.type==='tank'?'#8294ad':enemy.type==='swarm'?'#cc9a6f':'#bb826e';
-      drawPixels(ctx,sprite,{o:'#1a1018',a,b:'#4d334e',c:'#fff2bc',h:'#baaaa6'},left,top,scale);
+        enemy.pattern===1&&enemy.patternTriggered?'#e95569':angelColors[type];
+      drawAngel(ctx,type,left,top,scale,a);
       ctx.fillStyle='#231925';ctx.fillRect(left,top-5,width,3);
       ctx.fillStyle='#ff8e86';ctx.fillRect(left,top-5,Math.round(width*Math.max(0,enemy.hp/enemy.max)),3);
     }
@@ -1949,7 +2003,7 @@ function paintExpedition(now) {
   arena.fillStyle='#21172b';arena.fillRect(0,0,168,88);
   arena.fillStyle='#50355e';arena.fillRect(9,70,150,3);
   if(boss) {
-    drawPixels(arena,enemySprites.boss,{o:'#1a1018',a:'#bf72cc',b:'#614573',c:'#fff2bc',h:'#baaaa6'},99,20,4);
+    drawAngel(arena,'event',95,18,4);
     arena.fillStyle='#433341';arena.fillRect(99,13,51,4);
     arena.fillStyle='#ff859d';arena.fillRect(99,13,Math.round(zone.hp/boss.hp*51),4);
   }
@@ -2093,6 +2147,7 @@ const recipeButtons=new Map();
 new ResizeObserver(paintTitle).observe($('titleArt').parentElement);
 paintTitle();
 renderRecipes();
+window.addEventListener('load',loadDemonImages,{once:true});
 $('gamble').onclick=gamble;
 $('gamble').textContent='심연 도박 · 영혼 '+gamblePrice;
 for(const {label,weight} of gambleTable) {

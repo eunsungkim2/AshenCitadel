@@ -35,6 +35,9 @@ internal static class Program
 
             foreach (string asset in new[] { "index.html", "style.css", "game.js", "LICENSE.txt", "NOTICE.txt" })
                 Extract(assets, asset);
+            foreach (string resource in Package.GetManifestResourceNames())
+                if (resource.StartsWith("assets/demons/", StringComparison.Ordinal))
+                    Extract(assets, resource);
 
             AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
             return RunGame(data, assets, report);
@@ -66,8 +69,8 @@ internal static class Program
 
     private static string Extract(string directory, string name)
     {
-        Directory.CreateDirectory(directory);
-        string destination = Path.Combine(directory, name);
+        string destination = Path.Combine(directory, name.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(destination));
         if (File.Exists(destination))
             return destination;
 
