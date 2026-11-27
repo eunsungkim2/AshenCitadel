@@ -1112,6 +1112,10 @@ function renderRecipes() {
       details.append(row);
       entries[identity]={action,row,status,materials,progress,paintPortrait};
     }
+    details.addEventListener('toggle',()=>{
+      if(!details.open) return;
+      entries.forEach((entry,identity)=>requestDemonImage(recipeTower(star,identity)));
+    });
     container.append(details);
     recipeButtons.set(star,entries);
   }
@@ -1472,31 +1476,37 @@ function makeDemonArt(unit,silhouette) {
   return outlined;
 }
 const demonImages=new Map();
-const sinSpriteNames=['wrath','sloth','pride','greed','lust','gluttony','envy'];
+const seventhSpriteNames=['wrath','sloth','pride','greed','lust','gluttony','envy','oblivion','morga'];
 
-function loadDemonImages() {
-  for(let star=1;star<=maxStar;star++) {
-    const count=star===7?sinSpriteNames.length:identityCount(star);
-    for(let identity=0;identity<count;identity++) {
-      const key=recipeKey(star,identity);
-      const filename=identity===0?String(star):star+'-'+identity;
-      const path=star===7?sinSpriteNames[identity]:`rank-${star}/${filename}`;
-      const image=new Image();
-      demonImages.set(key,image);
-      image.onload=()=>{
-        demonCache.delete(key);
-        recipeButtons.get(star)?.[identity]?.paintPortrait();
-        delete $('unitStats').dataset.unit;
-        delete $('codexStats').dataset.unit;
-        mark();
-      };
-      image.src='assets/demons/'+path+'.png';
+function requestDemonImage(unit) {
+  const {star,identity}=unit;
+  const key=recipeKey(star,identity);
+  const existing=demonImages.get(key);
+  if(existing || document.readyState!=='complete') return existing;
+  const filename=identity===0?String(star):star+'-'+identity;
+  const path=star===7?seventhSpriteNames[identity]:`rank-${star}/${filename}`;
+  const image=new Image();
+  const url='assets/demons/'+path+'.png';
+  demonImages.set(key,image);
+  image.onload=()=>{
+    demonCache.delete(key);
+    recipeButtons.get(star)?.[identity]?.paintPortrait();
+    for(const id of ['unitStats','codexStats']) {
+      const stats=$(id);
+      if(stats.dataset.sprite===key) delete stats.dataset.unit;
     }
-  }
+    mark();
+  };
+  image.onerror=()=>{
+    image.onerror=null;
+    setTimeout(()=>{image.src=url;},250);
+  };
+  image.src=url;
+  return image;
 }
 
 function drawDemon(context,unit,x,y,scale,silhouette=false) {
-  const image=demonImages.get(recipeKey(unit.star,unit.identity));
+  const image=silhouette?demonImages.get(recipeKey(unit.star,unit.identity)):requestDemonImage(unit);
   if(image?.naturalWidth) {
     const size=44*scale/3;
     const foot=unit.star===7?size:size*122/128;
@@ -1518,6 +1528,7 @@ function renderUnitStats(container,unit) {
   const key=unit?unit.identity+':'+unit.star+':'+profile.spark:'';
   if(container.dataset.unit===key) return;
   container.dataset.unit=key;
+  container.dataset.sprite=unit?recipeKey(unit.star,unit.identity):'';
   container.replaceChildren();
   if(!unit) return;
   const card=document.createElement('div');
@@ -2147,7 +2158,12 @@ const recipeButtons=new Map();
 new ResizeObserver(paintTitle).observe($('titleArt').parentElement);
 paintTitle();
 renderRecipes();
-window.addEventListener('load',loadDemonImages,{once:true});
+window.addEventListener('load',()=>{
+  demonCache.clear();
+  delete $('unitStats').dataset.unit;
+  delete $('codexStats').dataset.unit;
+  mark();
+},{once:true});
 $('gamble').onclick=gamble;
 $('gamble').textContent='심연 도박 · 영혼 '+gamblePrice;
 for(const {label,weight} of gambleTable) {
