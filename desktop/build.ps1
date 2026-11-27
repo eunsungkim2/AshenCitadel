@@ -33,13 +33,8 @@ $arguments = @(
     "/resource:$winforms,Microsoft.Web.WebView2.WinForms.dll",
     "/resource:$loader,WebView2Loader.dll"
 )
-foreach ($asset in 'index.html', 'style.css', 'game.js') {
+foreach ($asset in 'index.html', 'style.css', 'game.js', 'assets/demon-sprites.js') {
     $arguments += "/resource:$(Join-Path $project $asset),$asset"
-}
-$demonDirectory = Join-Path $project 'assets/demons'
-foreach ($sprite in Get-ChildItem -LiteralPath $demonDirectory -Filter '*.png' -File -Recurse) {
-    $relativePath = $sprite.FullName.Substring($project.Length + 1).Replace('\', '/')
-    $arguments += "/resource:$($sprite.FullName),$relativePath"
 }
 foreach ($notice in 'LICENSE.txt', 'NOTICE.txt') {
     $arguments += "/resource:$(Join-Path $sdk $notice),$notice"

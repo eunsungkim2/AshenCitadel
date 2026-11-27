@@ -33,11 +33,8 @@ internal static class Program
             if (LoadLibrary(loader) == IntPtr.Zero)
                 throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
 
-            foreach (string asset in new[] { "index.html", "style.css", "game.js", "LICENSE.txt", "NOTICE.txt" })
+            foreach (string asset in new[] { "index.html", "style.css", "game.js", "assets/demon-sprites.js", "LICENSE.txt", "NOTICE.txt" })
                 Extract(assets, asset);
-            foreach (string resource in Package.GetManifestResourceNames())
-                if (resource.StartsWith("assets/demons/", StringComparison.Ordinal))
-                    Extract(assets, resource);
 
             AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
             return RunGame(data, assets, report);

@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>잿빛성체</title>
   <link rel="stylesheet" href="style.css">
-  <script src="game.js" defer></script>
+  <script src="assets/demon-sprites.js" defer></script>
+  <script src="game.js?v=2" defer></script>
 </head>
 <body>
   <section id="home" class="home">
@@ -15,7 +16,8 @@
     </div>
     <div class="home-card">
       <h1>잿빛성체</h1>
-      <button id="play" class="primary">게임 시작</button>
+      <button id="play" class="primary" disabled>게임 시작</button>
+      <p id="spriteStatus" role="status" hidden></p>
       <button id="homeLegacy">계승</button>
       <button id="options">옵션</button>
       <button id="homeCodex">악마 · 적 도감</button>

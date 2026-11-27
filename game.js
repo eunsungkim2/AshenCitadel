@@ -1112,10 +1112,6 @@ function renderRecipes() {
       details.append(row);
       entries[identity]={action,row,status,materials,progress,paintPortrait};
     }
-    details.addEventListener('toggle',()=>{
-      if(!details.open) return;
-      entries.forEach((entry,identity)=>requestDemonImage(recipeTower(star,identity)));
-    });
     container.append(details);
     recipeButtons.set(star,entries);
   }
@@ -1293,23 +1289,8 @@ function renderUI() {
     },!ready));
   }
 }
-// Each rank carries a different headpiece or insignia within its lineage.
-const spritePalettes = [
-  ['#ff8050','#9e2938','#ffe7a0','#c36c64'], ['#80edff','#3459a5','#e8feff','#a0b6ef'],
-  ['#ffd95f','#6953b6','#fffac6','#cf954e'], ['#e8bf60','#785024','#fff0a0','#a96e55'],
-  ['#d697ff','#633690','#ffe3ff','#aa7bbf']
-];
-// Each of these silhouettes belongs to a named four- or five-star demon.
 const pixelColors = ['#ae899c','#ff995d','#ffb988','#ddcbff','#ffe481','#ffab99','#fff3aa'];
 const rankColors=['#fff9ee','#abb0ba','#76d99b','#67b5ff','#b684f6','#ffd160','#ff5e61'];
-const sinVariants = {
-  5: {
-    palette:['#aab66a','#493553','#fff0ad','#a47962']
-  },
-  6: {
-    palette:['#66c4b6','#2f5570','#e7fff4','#679ca8']
-  }
-};
 function drawPixels(context, matrix, palette, x, y, scale) {
   const detail=scale/3;
   const fine=scale/9;
@@ -1339,190 +1320,35 @@ function drawPixels(context, matrix, palette, x, y, scale) {
     }
   }));
 }
-const insignia=[
-  ['..c..','.cac.','caaca','..c..','..c..'],
-  ['.c.c.','..a..','caaac','..a..','.c.c.'],
-  ['..cc.','.ca..','caa..','..ac.','.ca..'],
-  ['.ccc.','ca.ac','ca.ac','ca.ac','.ccc.'],
-  ['..c..','.cac.','ca.ac','.cac.','..c..'],
-  ['c...c','.cac.','..a..','.cac.','c...c']
-];
-const portraitArt=new Map();
-function makeDemonArt(unit,silhouette) {
-  const canvas=document.createElement('canvas');
-  canvas.width=40;canvas.height=44;
-  const a=canvas.getContext('2d');
-  const special=isSpecial(unit.star,unit.identity), lineage=special?lineageIndex(unit.star,unit.identity):null;
-  const variant=unit.star===7?sinVariants[unit.identity]:null;
-  const [primary,dark,metal,skin]=special?specialLineages[lineage].palette:variant?.palette ??
-    (unit.role===5?['#69e8cb','#2d6478','#f8fff1','#82a7a9']:spritePalettes[unit.role]);
-  const ink='#151023', alt=unit.star<=5 && unit.identity>=5, high=unit.star>=4;
-  const accent=alt?metal:primary, cloth=alt?primary:dark;
-  function rect(color,x,y,w,h) {a.fillStyle=color;a.fillRect(x,y,w,h);}
-  function shape(color,points) {
-    a.fillStyle=color;a.beginPath();
-    for(const [index,[x,y]] of points.entries()) index?a.lineTo(x,y):a.moveTo(x,y);
-    a.closePath();a.fill();
-  }
-  const horn=high?3+unit.star%3:1+unit.identity%3;
-  if(unit.star===2 || unit.star===3) {
-    shape(ink,[[16,21],[7,20],[4,35],[8,41],[15,38],[24,38],[32,41],[36,37],[33,22],[24,21]]);
-    shape(cloth,[[14,22],[8,23],[6,35],[9,39],[14,35],[23,36],[31,39],[34,36],[31,24],[26,22]]);
-    if(unit.star===3) {
-      shape(metal,[[9,24],[14,24],[13,29],[8,31],[6,28]]);
-      shape(accent,[[26,24],[31,24],[34,28],[31,31],[27,29]]);
-    }
-  }
-  if(high) {
-    shape(ink,[[17,18],[4,10],[2,20],[7,32],[12,36],[28,36],[34,32],[38,20],[36,10],[23,18]]);
-    shape(dark,[[15,19],[5,12],[4,21],[9,31],[14,32]]);
-    shape(cloth,[[25,19],[35,12],[36,21],[31,31],[26,32]]);
-  }
-  shape(ink,[[11,15],[8-horn,7],[8-horn,3],[14,8],[17,11],[23,11],[26,8],[32+horn,3],[32+horn,7],[29,15],
-    [30,20],[27,24],[32,29],[29,37],[27,41],[22,41],[20,38],[18,41],[11,41],[10,37],[8,30],[13,24],[10,20]]);
-  shape(accent,[[11,12],[9-horn,5],[13,8],[17,13]]);
-  shape(metal,[[24,13],[32+horn,5],[31+horn,9],[28,13]]);
-  rect(metal,14,14,12,2);rect(accent,13,16,14,7);rect(skin,15,19,10,5);
-  rect(ink,14,18,5,2);rect(ink,22,18,5,2);rect(metal,16,18,2,1);rect('#fff2cf',23,18,2,1);
-  rect(dark,19,21,2,2);rect(ink,18,24,5,1);
-  shape(cloth,[[14,25],[26,25],[31,31],[26,36],[25,40],[21,38],[18,38],[15,40],[12,35],[9,31]]);
-  shape(accent,[[15,25],[18,26],[17,32],[14,35],[11,32]]);
-  shape(primary,[[25,25],[22,26],[24,34],[27,35],[30,31]]);
-  rect(metal,17,35,7,2);rect(ink,14,39,4,2);rect(ink,23,39,4,2);
-  drawPixels(a,insignia[unit.role],{a:primary,c:metal},18,27,1);
-  if(unit.star>1) {
-    rect('#ffffff3a',14,25,11,1);
-    rect('#ffffff44',13,31,2,2);rect('#ffffff44',25,31,2,2);
-    rect('#100a20aa',16,36,1,3);rect('#100a20aa',23,36,1,3);
-  }
-  if(unit.star>=5) {
-    shape(ink,[[14,13],[12,6],[16,8],[20,3],[24,8],[28,6],[26,13]]);
-    shape(metal,[[15,12],[14,8],[17,10],[20,5],[23,10],[26,8],[25,12]]);
-    rect(primary,19,9,2,2);
-    rect(metal,11,30,2,3);rect(metal,27,30,2,3);
-  }
-  if(unit.star===7 && !special) {
-    switch(unit.identity) {
-      case 0: // Wrath
-        shape('#a22d37',[[26,35],[29,24],[31,13],[34,18],[36,8],[39,5],[37,20],[39,22],[35,31],[30,38]]);
-        shape('#ffad64',[[30,33],[32,23],[34,24],[36,14],[37,22],[35,29],[31,35]]);
-        break;
-      case 1: // Sloth
-        shape('#356b99',[[3,19],[3,7],[7,4],[11,9],[8,20],[11,37],[7,40],[4,33]]);
-        shape('#dcfaff',[[5,16],[5,8],[7,6],[9,10],[7,15]]);
-        rect('#98dfeb',29,32,6,3);rect('#ecf6ff',32,28,2,9);
-        break;
-      case 2: // Pride
-        shape('#c59245',[[10,13],[9,5],[15,8],[20,1],[25,8],[31,5],[30,13],[26,15],[13,15]]);
-        shape('#ffecaa',[[13,12],[12,8],[16,10],[20,4],[24,10],[28,8],[27,12]]);
-        rect('#ffed9b',19,6,2,3);
-        break;
-      case 3: // Greed
-        shape('#986032',[[3,24],[10,22],[14,28],[12,38],[4,39],[1,34]]);
-        shape('#ffe181',[[4,25],[9,24],[12,28],[10,36],[5,37],[3,33]]);
-        rect('#815131',6,28,4,5);rect('#fff5ac',7,27,2,7);
-        break;
-      case 4: // Lust
-        shape('#a357a1',[[7,10],[2,18],[6,24],[10,24],[12,20],[8,19],[13,13]]);
-        shape('#d77dd2',[[34,9],[39,14],[37,22],[34,26],[29,23],[33,19],[31,14]]);
-        shape('#ffd7ed',[[17,14],[19,13],[20,15],[22,13],[24,14],[20,18]]);
-        break;
-      case 5: // Gluttony
-        shape('#392a37',[[12,24],[27,24],[30,28],[27,36],[14,36],[10,31]]);
-        shape('#964652',[[13,27],[27,27],[26,33],[15,33]]);
-        rect('#fff0bd',15,27,2,4);rect('#fff0bd',23,27,2,4);rect('#efa0ac',19,32,4,1);
-        break;
-      case 6: // Envy
-        shape('#3d948e',[[28,38],[37,36],[39,29],[38,25],[34,24],[36,28],[35,31],[28,32]]);
-        shape('#ade7cb',[[31,36],[36,35],[38,29],[37,27],[37,31],[35,33],[31,34]]);
-        rect('#edfff1',26,18,2,2);rect('#edfff1',12,18,2,2);
-        break;
-    }
-  }
-  if(special) {
-    const glyphY=unit.star>=6?4:12;
-    shape(dark,[[19,glyphY-4],[24,glyphY],[19,glyphY+4],[14,glyphY]]);
-    shape(metal,[[19,glyphY-2],[21,glyphY],[19,glyphY+2],[17,glyphY]]);
-    if(unit.star>=6) {
-      for(const [x,y] of [[3,14+lineage],[35,12-lineage],[7,29],[32,33]]) {
-        rect(primary,x,y,3,2);rect(metal,x+1,y,1,1);
-      }
-      shape(primary,[[13,30],[19,25],[25,30],[21,34],[17,34]]);
-      rect(metal,18,28,3,3);
-    }
-  }
-  if(unit.star!==7 || special) switch(unit.role) {
-    case 0: shape(ink,[[32,34],[35,15],[39,13],[39,20],[35,33]]);shape(metal,[[34,30],[36,17],[38,15],[38,19],[36,28]]);rect(accent,32,29,6,2);break;
-    case 1: rect(ink,4,13,3,25);shape(primary,[[5,5],[10,11],[5,18],[1,11]]);shape(metal,[[5,7],[8,11],[5,14],[3,11]]);break;
-    case 2: shape(ink,[[31,13],[39,16],[37,24],[31,27],[27,21]]);shape(accent,[[30,14],[37,16],[35,23],[31,25],[29,20]]);shape(metal,[[33,15],[31,19],[34,19],[31,23],[36,18],[33,18]]);break;
-    case 3: shape(ink,[[29,29],[34,24],[39,28],[39,36],[30,36]]);rect('#a96b35',31,28,6,6);rect(metal,33,27,3,6);rect(primary,30,31,7,2);break;
-    case 4: shape(ink,[[1,26],[5,23],[12,26],[12,36],[6,35],[1,36]]);rect(primary,3,27,7,6);rect(metal,5,28,1,4);rect(metal,7,28,1,4);break;
-    default: shape(ink,[[30,22],[36,20],[39,26],[36,33],[29,33],[27,27]]);shape(primary,[[32,22],[36,22],[38,27],[34,31],[29,29],[29,25]]);rect(metal,33,24,2,4);
-  }
-  const badge=unit.identity+1;
-  for(let bit=0;bit<4;bit++) if(badge&(1<<bit)) rect(metal,14+bit*4,9,2,2);
-  for(let rank=0;rank<unit.star;rank++) rect(rankColors[unit.star-1],11+rank*3,42,2,1);
-  if(silhouette) {
-    a.globalCompositeOperation='source-in';rect('#b59aa9',0,0,40,44);
-    return canvas;
-  }
-  if(unit.star>5) return canvas;
-  const outlined=document.createElement('canvas');
-  outlined.width=40;outlined.height=44;
-  const edge=outlined.getContext('2d');
-  for(const [dx,dy] of [[0,-1],[-1,0],[1,0],[0,1]]) edge.drawImage(canvas,dx,dy);
-  edge.globalCompositeOperation='source-in';edge.fillStyle=rankColors[unit.star-1];edge.fillRect(0,0,40,44);
-  edge.globalCompositeOperation='source-over';edge.drawImage(canvas,0,0);
-  return outlined;
-}
 const demonImages=new Map();
-const seventhSpriteNames=['wrath','sloth','pride','greed','lust','gluttony','envy','oblivion','morga'];
 
-function requestDemonImage(unit) {
-  const {star,identity}=unit;
-  const key=recipeKey(star,identity);
-  const existing=demonImages.get(key);
-  if(existing || document.readyState!=='complete') return existing;
-  const filename=identity===0?String(star):star+'-'+identity;
-  const path=star===7?seventhSpriteNames[identity]:`rank-${star}/${filename}`;
-  const image=new Image();
-  const url='assets/demons/'+path+'.png';
-  demonImages.set(key,image);
-  image.onload=()=>{
-    demonCache.delete(key);
-    recipeButtons.get(star)?.[identity]?.paintPortrait();
-    for(const id of ['unitStats','codexStats']) {
-      const stats=$(id);
-      if(stats.dataset.sprite===key) delete stats.dataset.unit;
-    }
-    mark();
-  };
-  image.onerror=()=>{
-    image.onerror=null;
-    setTimeout(()=>{image.src=url;},250);
-  };
-  image.src=url;
-  return image;
+async function loadDemonSprites() {
+  const decoded=await Promise.all(Object.entries(bundledDemonSprites).map(async ([key,encoded])=>{
+    const bytes=Uint8Array.from(atob(encoded),character=>character.charCodeAt(0));
+    const image=await createImageBitmap(new Blob([bytes],{type:'image/png'}));
+    return [key,image];
+  }));
+  for(const [key,image] of decoded) demonImages.set(key,image);
+  if(demonImages.size!==Array.from({length:maxStar},(_,i)=>identityCount(i+1)).reduce((sum,n)=>sum+n,0)) {
+    throw new Error('Incomplete demon sprite bundle');
+  }
+  for(const entries of recipeButtons.values()) entries.forEach(entry=>entry.paintPortrait());
+  delete $('unitStats').dataset.unit;
+  delete $('codexStats').dataset.unit;
+  mark();
 }
 
 function drawDemon(context,unit,x,y,scale,silhouette=false) {
-  const image=silhouette?demonImages.get(recipeKey(unit.star,unit.identity)):requestDemonImage(unit);
-  if(image?.naturalWidth) {
-    const size=44*scale/3;
-    const foot=unit.star===7?size:size*122/128;
-    context.save();
-    context.imageSmoothingEnabled=false;
-    if(silhouette) context.filter='brightness(0) invert(24%) sepia(19%) saturate(800%)';
-    context.drawImage(image,x-size/2,y-foot,size,size);
-    context.restore();
-    return;
-  }
-
-  const key=recipeKey(unit.star,unit.identity)+':'+silhouette;
-  if(!portraitArt.has(key)) portraitArt.set(key,makeDemonArt(unit,silhouette));
-  const dot=scale/3;
+  const image=demonImages.get(recipeKey(unit.star,unit.identity));
+  if(!image) return false;
+  const size=44*scale/3;
+  const foot=unit.star===7?size:size*122/128;
+  context.save();
   context.imageSmoothingEnabled=false;
-  context.drawImage(portraitArt.get(key),x-20*dot,y-43*dot,40*dot,44*dot);
+  if(silhouette) context.filter='brightness(0) invert(24%) sepia(19%) saturate(800%)';
+  context.drawImage(image,x-size/2,y-foot,size,size);
+  context.restore();
+  return true;
 }
 function renderUnitStats(container,unit) {
   const key=unit?unit.identity+':'+unit.star+':'+profile.spark:'';
@@ -1639,7 +1465,7 @@ function paintBoardDemon(unit,x,y) {
     sprite.width=64*sceneResolution;sprite.height=60*sceneResolution;
     const paint=sprite.getContext('2d');
     paint.scale(sceneResolution,sceneResolution);
-    drawDemon(paint,unit,32,52,boardUnitScale);
+    if(!drawDemon(paint,unit,32,52,boardUnitScale)) return;
     demonCache.set(key,sprite);
   }
   ctx.drawImage(sprite,x-32,y-52,64,60);
@@ -2158,12 +1984,6 @@ const recipeButtons=new Map();
 new ResizeObserver(paintTitle).observe($('titleArt').parentElement);
 paintTitle();
 renderRecipes();
-window.addEventListener('load',()=>{
-  demonCache.clear();
-  delete $('unitStats').dataset.unit;
-  delete $('codexStats').dataset.unit;
-  mark();
-},{once:true});
 $('gamble').onclick=gamble;
 $('gamble').textContent='심연 도박 · 영혼 '+gamblePrice;
 for(const {label,weight} of gambleTable) {
@@ -2182,6 +2002,13 @@ for(let star=1;star<=maxStar;star++) for(let identity=0;identity<identityCount(s
 }
 $('codexUnit').onchange=()=>mark();
 reset();
+loadDemonSprites().then(()=>{
+  $('play').disabled=false;
+}).catch(error=>{
+  console.error('Failed to load demon sprites',error);
+  $('spriteStatus').textContent='악마 이미지를 불러오지 못했습니다. 최신 프로젝트 파일을 확인해 주세요.';
+  $('spriteStatus').hidden=false;
+});
 let last=0, frameTime=0, lastCountdown=-1, lastPaint=-Infinity;
 function frame(now) {
   const elapsed=(now-(last||now))/1000;
