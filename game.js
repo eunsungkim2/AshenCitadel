@@ -1321,6 +1321,7 @@ function drawPixels(context, matrix, palette, x, y, scale) {
   }));
 }
 const demonImages=new Map();
+const outlinedDemonImages=new Map();
 
 async function loadDemonSprites() {
   const decoded=await Promise.all(Object.entries(bundledDemonSprites).map(async ([key,encoded])=>{
@@ -1338,15 +1339,47 @@ async function loadDemonSprites() {
   mark();
 }
 
+function outlinedDemonImage(key,image,star) {
+  let outlined=outlinedDemonImages.get(key);
+  if(outlined) return outlined;
+  // Pad the source canvas so outlines around edge pixels remain visible.
+  const padding=Math.round(image.width*1.25/44);
+  const diagonal=Math.round(padding/Math.SQRT2);
+  const canvas=document.createElement('canvas');
+  canvas.width=image.width+padding*2;
+  canvas.height=image.height+padding*2;
+  const context=canvas.getContext('2d');
+  for(const [dx,dy] of [
+    [0,-padding],[-padding,0],[padding,0],[0,padding],
+    [-diagonal,-diagonal],[diagonal,-diagonal],[-diagonal,diagonal],[diagonal,diagonal]
+  ]) context.drawImage(image,padding+dx,padding+dy);
+  context.globalCompositeOperation='source-in';
+  context.fillStyle=rankColors[star-1];
+  context.fillRect(0,0,canvas.width,canvas.height);
+  context.globalCompositeOperation='source-over';
+  context.drawImage(image,padding,padding);
+  outlined={canvas,padding};
+  outlinedDemonImages.set(key,outlined);
+  return outlined;
+}
+
 function drawDemon(context,unit,x,y,scale,silhouette=false) {
-  const image=demonImages.get(recipeKey(unit.star,unit.identity));
+  const key=recipeKey(unit.star,unit.identity);
+  const image=demonImages.get(key);
   if(!image) return false;
   const size=44*scale/3;
   const foot=unit.star===7?size:size*122/128;
+  const left=x-size/2, top=y-foot;
   context.save();
   context.imageSmoothingEnabled=false;
-  if(silhouette) context.filter='brightness(0) invert(24%) sepia(19%) saturate(800%)';
-  context.drawImage(image,x-size/2,y-foot,size,size);
+  if(silhouette) {
+    context.filter='brightness(0) invert(24%) sepia(19%) saturate(800%)';
+    context.drawImage(image,left,top,size,size);
+  } else {
+    const {canvas,padding}=outlinedDemonImage(key,image,unit.star);
+    const gutter=padding*size/image.width;
+    context.drawImage(canvas,left-gutter,top-gutter,size+gutter*2,size+gutter*2);
+  }
   context.restore();
   return true;
 }
