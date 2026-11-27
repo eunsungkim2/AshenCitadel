@@ -12,3 +12,8 @@
 
 - Windows 개발 PC에서 EXE를 빌드하고 WebView2 런타임으로 실행한다. 빌드 후 PowerShell에서 `Start-Process .\AshenCitadel.exe -ArgumentList '--smoke-test smoke-result.txt' -Wait -PassThru`로 내장 스모크 테스트를 실행하고 종료 코드와 보고서를 확인한다. Linux에서는 이 검증을 실행하지 못했다. 보고서와 스크린샷은 커밋 대상에서 제외한다.
 - 다른 PC에서 개발을 재개할 때 `AGENTS.md`에 따라 최신 `main`과 작업 트리 상태를 확인한다. 현재 별도로 지정된 게임 기능 변경은 없다.
+
+## 2026-11-27 · 악마 이미지 폴더
+
+- 악마 이미지 원본을 두 PC에서 공유할 수 있도록 `assets/demons/` 폴더를 추가했다.
+- 다음 작업은 ChatGPT에서 생성한 원본 이미지를 전달받아 이 폴더에 보관하는 것이다.
