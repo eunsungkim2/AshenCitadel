@@ -240,12 +240,12 @@ internal sealed class GameWindow : Form
             startWave();step(1/30);
             const elite=game.enemies.find(enemy=>enemy.challenge===0);
             if(!elite) return 'elite spawned';
-            elite.hp=0;step(1/30);queueMission(0);
+            elite.hp=0;step(1/30);toggleMissionAuto(0);
             if(!game.active[0].auto || game.active[0].clears!==1) return 'mission auto enabled';
             game.active[0].wait=0;step(1/30);
             if(!game.enemies.some(enemy=>enemy.challenge===0)) return 'mission auto respawn';
-            queueMission(0);
-            if(game.active[0].auto || game.active[0].armed) return 'mission auto disabled';
+            toggleMissionAuto(0);
+            if(game.active[0].auto) return 'mission auto disabled';
             profile.pulse=1;useResearchSkill();
             if(!game.pulseUsed || game.enemies.some(enemy=>enemy.slow<2.5)) return 'research pulse';
             profile.pulse=0;

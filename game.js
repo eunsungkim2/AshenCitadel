@@ -61,7 +61,7 @@ const enemyTypes={
   swift:{label:'질주',hp:.63,speed:1.42},
   tank:{label:'중갑',hp:2.35,speed:.76},
   swarm:{label:'밀집',hp:.57,speed:1.03},
-  mission:{label:'미션',hp:2.4,speed:1},
+  mission:{label:'미션',hp:2.88,speed:1},
   boss:{label:'보스',hp:12,speed:.72}
 };
 const bossPatterns=[
@@ -240,7 +240,7 @@ function reset() {
     mergeSource:null, skillPreview:null,
     autoTime:7, speed:1, paused:false, enemyDeaths:[], bossFall:null, bossDefeated:false, bossRewarded:false,bossTime:null,bossKills:0,cleared:0,
     researchEarned:0, played:0, pulseUsed:false, runStarted:false,
-    active:activeMissions.map(()=>({auto:false,armed:false,queued:false,alive:false,clears:0,wait:0})),
+    active:activeMissions.map(()=>({auto:false,queued:0,alive:0,clears:0,wait:0})),
     expedition:{index:0,hp:eventChallenges[0].hp,unit:null,slot:null,wait:0,attack:null},
     tickets:[0,0,0,0], gambleResult:'',
     plan:wavePlan(1), text:'전장의 빈 발판을 선택한 뒤 랜덤 소환을 누르세요.'
@@ -727,32 +727,34 @@ function advanceRound(round) {
 const bossTicketTier=round=>profile.choice || round>=50?3:round>=20?2:1;
 const missionTicketTier=round=>round>=75?3:round>=25?2:1;
 const activeMissions=[
-  {name:'잿더미의 추적자',unlock:1,cooldown:28,gold:10,type:'swift',hp:65},
-  {name:'철벽의 징수관',unlock:10,cooldown:34,gold:15,type:'tank',hp:155},
-  {name:'도망친 악령',unlock:20,cooldown:38,gold:19,type:'swift',hp:250},
-  {name:'피의 파수꾼',unlock:35,cooldown:42,gold:24,type:'tank',hp:390},
-  {name:'노말의 사형수',unlock:50,cooldown:46,gold:29,type:'tank',hp:540},
-  {name:'허공의 추격자',unlock:70,cooldown:50,gold:35,type:'swift',hp:690},
-  {name:'하드의 감시자',unlock:100,cooldown:55,gold:45,type:'tank',hp:940}
+  {name:'잿더미의 추적자',unlock:1,cooldown:28,gold:8,type:'swift',hp:78},
+  {name:'철벽의 징수관',unlock:10,cooldown:34,gold:12,type:'tank',hp:186},
+  {name:'도망친 악령',unlock:20,cooldown:38,gold:15,type:'swift',hp:300},
+  {name:'피의 파수꾼',unlock:35,cooldown:42,gold:19,type:'tank',hp:468},
+  {name:'노말의 사형수',unlock:50,cooldown:46,gold:23,type:'tank',hp:648},
+  {name:'허공의 추격자',unlock:70,cooldown:50,gold:28,type:'swift',hp:828},
+  {name:'하드의 감시자',unlock:100,cooldown:55,gold:36,type:'tank',hp:1128}
 ];
-function queueMission(index) {
-  if(!canCombine() || game.round<activeMissions[index].unlock) return;
+const missionCapacity=3;
+function canQueueMission(index) {
   const state=game.active[index];
-  if(state.auto) {
-    state.auto=false;state.armed=false;state.queued=false;
-  } else if(state.clears>0 && state.armed) {
-    state.auto=true;
-    if(!state.alive && state.wait<=0) {
-      if(game.phase==='wave') spawnMission(index);
-      else state.queued=true;
-    }
-  } else if(!state.alive && !state.queued && state.wait<=0) {
-    state.armed=true;
-    if(game.phase==='wave') spawnMission(index);
-    else state.queued=true;
+  return canCombine() && game.round>=activeMissions[index].unlock && state.queued+state.alive<missionCapacity;
+}
+function queueMission(index) {
+  if(!canQueueMission(index)) return;
+  if(game.phase==='wave') spawnMission(index);
+  else {
+    game.active[index].queued++;
+    mark(activeMissions[index].name+' · 다음 웨이브 소환 예약');
   }
+}
+function toggleMissionAuto(index) {
+  const state=game.active[index];
+  if(!canCombine() || !state.clears) return;
+  state.auto=!state.auto;
   mark();
 }
+
 const eventChallenges=[
   {name:'봉인의 감시자',round:1,hp:1040,gold:28},
   {name:'절벽의 사형수',round:20,hp:5200,gold:49},
@@ -802,9 +804,11 @@ function stepExpedition(dt) {
 }
 function spawnMission(index) {
   const mission=activeMissions[index], state=game.active[index];
-  const hp=mission.hp+Math.max(0,game.round-mission.unlock)*3;
-  game.enemies.push({...position(0),progress:0,hp,max:hp,type:mission.type,challenge:index,slow:0,stun:0,curse:0,shield:0});
-  state.alive=true;state.queued=false;state.wait=mission.cooldown;
+  const hp=mission.hp+Math.max(0,game.round-mission.unlock)*3.6;
+  const lanes=game.enemies.filter(enemy=>enemy.challenge===index).map(enemy=>enemy.lane);
+  const lane=[0,-1,1].find(offset=>!lanes.includes(offset)) ?? 0;
+  game.enemies.push({...position(0),progress:0,hp,max:hp,type:mission.type,challenge:index,lane,slow:0,stun:0,curse:0,shield:0});
+  state.alive++;state.wait=mission.cooldown;
   recordEncounter('quest:'+index);
   mark(mission.name+' 소환');
 }
@@ -816,7 +820,12 @@ function updateMissions(dt) {
       state.wait=Math.max(0,state.wait-dt);
       if(previous!==Math.ceil(state.wait)) mark();
     }
-    if(waveActive && !state.alive && state.wait<=0 && (state.queued||state.auto)) spawnMission(index);
+    if(!waveActive) return;
+    while(state.queued>0 && state.alive<missionCapacity) {
+      state.queued--;
+      spawnMission(index);
+    }
+    if(state.auto && state.wait<=0 && state.alive<missionCapacity) spawnMission(index);
   });
 }
 function completeWave() {
@@ -856,7 +865,7 @@ function finishWave(round) {
 function bossTimedOut() {
   const round=game.round;
   game.bossTime=null;
-  for(const enemy of game.enemies) if(enemy.challenge!==undefined) game.active[enemy.challenge].alive=false;
+  for(const state of game.active) state.alive=0;
   game.enemies=[];
   if(round===maxRound) {endRun('timeout');return;}
   game.round++;
@@ -1046,7 +1055,7 @@ function step(dt) {
   for (const enemy of game.enemies) {
     if (enemy.hp<=0) {
       game.kills++;
-      const death={key:angelKey(enemy),x:enemy.x,y:enemy.y,size:enemySpriteSize(enemy),age:0};
+      const death={key:angelKey(enemy),x:enemy.x+(enemy.lane ?? 0)*.22,y:enemy.y,size:enemySpriteSize(enemy),age:0};
       if(enemy.boss) {
         game.bossFall={...death,duration:reducedAuraMotion.matches ? .48 : 1.20};
         game.bossDefeated=true;
@@ -1064,12 +1073,12 @@ function step(dt) {
       game.incomeTicks%=skills.income.ticksPerSoul;
       if (enemy.mission) {
         const tier=missionTicketTier(game.round);
-        game.missionKills++;game.gold+=9;awardTicket(tier);
-        mark('미션 몬스터 처치 · 영혼 9 및 '+tier+'성 선택권 획득');
+        game.missionKills++;game.gold+=7;awardTicket(tier);
+        mark('미션 몬스터 처치 · 영혼 7 및 '+tier+'성 선택권 획득');
       }
       if(enemy.challenge!==undefined) {
         const mission=activeMissions[enemy.challenge], state=game.active[enemy.challenge];
-        state.alive=false;state.clears++;
+        state.alive--;state.clears++;
         game.gold+=mission.gold;
         mark(mission.name+' 처치 · 영혼 '+mission.gold+' 획득');
       }
@@ -1089,7 +1098,7 @@ function step(dt) {
     Object.assign(enemy,position(enemy.progress));
     if (enemy.progress>=pathLength) {
       if(enemy.challenge!==undefined) {
-        game.active[enemy.challenge].alive=false;
+        game.active[enemy.challenge].alive--;
         mark(activeMissions[enemy.challenge].name+'이 도주했습니다.');
       } else {
         game.life=Math.max(0,game.life-1);mark('적이 성채에 도달했습니다.');
@@ -1164,22 +1173,27 @@ function rewardForPlacement() {
 }
 function renderActiveMissions() {
   const host=$('activeMissions');
-  const state=game.active.map(x=>[x.auto,x.armed,x.alive,x.queued,x.clears,Math.ceil(x.wait)].join(':')).join('|')+
-    ':'+game.round+':'+canCombine();
+  const state=game.active.map(x=>[x.auto,x.alive,x.queued,x.clears,Math.ceil(x.wait)].join(':')).join('|')+
+    ':'+game.round+':'+game.phase+':'+canCombine();
   if(host.dataset.state===state) return;
   host.dataset.state=state;
   host.replaceChildren(...activeMissions.map((mission,i)=>{
     const status=game.active[i], wait=Math.ceil(status.wait);
-    const mode=game.round<mission.unlock?mission.unlock+'라운드 해금':
-      [status.auto?'자동 켜짐':status.clears>0&&status.armed?'자동 켜기':'수동 시작',
-        status.alive?'전투 중':status.queued?'다음 웨이브 예약':wait?'쿨타임 '+wait+'초':'준비',
-        '보상 영혼 '+mission.gold].join(' · ');
-    const disabled=!canCombine() || game.round<mission.unlock ||
-      (!status.auto && !(status.clears>0&&status.armed) && (status.alive||status.queued||wait>0));
-    const control=button(mission.name+' · '+mode,()=>queueMission(i),disabled);
-    control.className='active-mission';
-    control.setAttribute('aria-pressed',String(status.auto));
-    return control;
+    const unlocked=game.round>=mission.unlock;
+    const row=document.createElement('div');
+    const label=unlocked?mission.name+' · '+(game.phase==='wave'?'소환':'예약')+' · 전투 '+status.alive+
+      ' / 예약 '+status.queued+' · 영혼 '+mission.gold:mission.name+' · '+mission.unlock+'라운드 해금';
+    const summon=button(label,()=>queueMission(i),!canQueueMission(i));
+    summon.className='active-mission';
+    row.append(summon);
+    if(status.clears>0) {
+      const auto=button(status.auto?'자동 끄기'+(wait?' · '+wait+'초':''):'자동 켜기',
+        ()=>toggleMissionAuto(i),!canCombine(),status.auto);
+      auto.className='active-mission';
+      auto.setAttribute('aria-pressed',String(status.auto));
+      row.append(auto);
+    }
+    return row;
   }));
 }
 function renderUI() {
@@ -2006,7 +2020,7 @@ function paintBoard(now) {
   if(!mergeUnit) paintRange();
   const motions=new Map();
   for(const shot of game.shots) if(shot.from) motions.set(shot.from,shot);
-  const figures=game.enemies.map(enemy=>({p:project(enemy.x,enemy.y),enemy}));
+  const figures=game.enemies.map(enemy=>({p:project(enemy.x+(enemy.lane ?? 0)*.22,enemy.y),enemy}));
   game.board.forEach((unit,i)=>{if(unit) figures.push({p:project(cells[i].x,cells[i].y),unit,cell:cells[i],i});});
   const drawLayer=figure=>isPairMatch(mergeUnit,figure.unit)?3:figure.enemy?2:figure.i===game.selected?1:0;
   figures.sort((a,b)=>drawLayer(a)-drawLayer(b) || a.p.y-b.p.y);
