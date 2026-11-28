@@ -793,7 +793,7 @@ function stepExpedition(dt) {
   const damage=dps(unit)*interval*(1+relicRank(0)*.06+relicRank(3)*.18)*(1+relicRank(5)*.08)*
     (unit.role===0?1+fireBossBonus[unit.star-1]:1);
   const duration=.28+unit.star*.035;
-  zone.attack={role:unit.role,star:unit.star,effect:unit.role===1?'frost':unit.role===4?'curse':'hit',
+  zone.attack={motion:nextDemonAttackMotion(unit),role:unit.role,star:unit.star,effect:unit.role===1?'frost':unit.role===4?'curse':'hit',
     time:duration,duration};
   zone.hp=Math.max(0,zone.hp-damage);
   if(zone.hp===0) {
@@ -1058,7 +1058,7 @@ function step(dt) {
     }
     playAttack(unit.role);
     const duration=.28+unit.star*.035;
-    game.shots.push({from:cell,to:{x:target.x,y:target.y},role:unit.role,star:unit.star,effect,
+    game.shots.push({from:cell,to:{x:target.x,y:target.y},motion:nextDemonAttackMotion(unit),role:unit.role,star:unit.star,effect,
       support:support>1,burstRadius,executed,time:duration,duration});
   }
   for (const enemy of game.enemies) {
@@ -1395,6 +1395,7 @@ function drawPixels(context, matrix, palette, x, y, scale) {
   }));
 }
 const demonImages=new Map();
+const demonAttackImages=new Map();
 const angelImages=new Map();
 const outlinedDemonImages=new Map();
 
@@ -1407,7 +1408,8 @@ async function decodeSprites(bundle,images) {
   for(const [key,image] of decoded) images.set(key,image);
 }
 async function loadUnitSprites() {
-  await Promise.all([decodeSprites(bundledDemonSprites,demonImages),decodeSprites(bundledAngelSprites,angelImages)]);
+  await Promise.all([decodeSprites(bundledDemonSprites,demonImages),decodeSprites(bundledAngelSprites,angelImages),
+    decodeSprites(bundledDemonAttackSprites,demonAttackImages)]);
   const angelKeys=['normal','swift','tank','swarm','mission',
     ...bossPatterns.map((_,i)=>'boss:'+i),...activeMissions.map((_,i)=>'quest:'+i),...eventChallenges.map((_,i)=>'event:'+i)];
   if(demonImages.size!==Array.from({length:maxStar},(_,i)=>identityCount(i+1)).reduce((sum,n)=>sum+n,0) ||
@@ -1585,7 +1587,7 @@ function paintBoardDemon(unit,x,y,attack,now=0) {
   if(attack) transformAttack(ctx,x,y,attack,attack.to.x-attack.from.x,attack.to.y-attack.from.y);
   else ctx.translate(x,y);
   if(unit.star===7) paintSeventhAura(ctx,unit.identity,now);
-  ctx.drawImage(sprite,-32,-52,64,60);
+  if(!drawDemonAttackFrame(ctx,unit,attack)) ctx.drawImage(sprite,-32,-52,64,60);
   ctx.restore();
 }
 const tileScale=48, boardLeft=52, boardTop=72;
@@ -1629,7 +1631,7 @@ function drawAngel(context,key,x,y,size,filter='none',stride=null) {
   context.restore();
 }
 function paintEffect(shot) {
-  const {to,from,effect,role,support,time,burstRadius}=shot;
+  const {to,from,effect,support,time,burstRadius}=shot;
   const p=project(to.x,to.y);
   const x=Math.round(p.x),y=Math.round(p.y);
   if (effect==='craft') {
@@ -1654,24 +1656,14 @@ function paintEffect(shot) {
   }
   const age=effectAge(shot);
   const impact=Math.max(0,(age-.22)/.78);
-  const color=roleData[role].color;
   ctx.save();
   if(from) {
-    const a=project(from.x,from.y);
-    const travel=Math.min(1,age/.30);
-    const head={x:a.x+(x-a.x)*travel,y:a.y-10+(y-a.y+10)*travel};
-    ctx.globalAlpha=Math.min(1,time*7);
-    ctx.strokeStyle=color;
-    ctx.lineWidth=shot.star>=5?3:2;
-    ctx.beginPath();
-    ctx.moveTo(a.x,a.y-10);
-    if(effect==='stun') ctx.lineTo((a.x+head.x)/2-4,(a.y+head.y)/2+5);
-    ctx.lineTo(head.x,head.y);
-    ctx.stroke();
+    const origin=project(from.x,from.y);
+    paintDemonAttack(ctx,origin.x,origin.y+16,x,y,shot);
     if(support) {
       ctx.fillStyle='#e7c4ff';
-      ctx.fillRect(a.x-10,a.y-12,4,4);
-      ctx.fillRect(a.x+7,a.y-12,4,4);
+      ctx.fillRect(origin.x-10,origin.y-12,4,4);
+      ctx.fillRect(origin.x+7,origin.y-12,4,4);
     }
   }
   if(impact>0) paintSkillImpact(ctx,x,y,shot,impact,burstRadius?burstRadius*tileScale:undefined);
@@ -1680,16 +1672,134 @@ function paintEffect(shot) {
 function effectAge(shot) {
   return Math.max(0,Math.min(1,1-shot.time/(shot.duration ?? (shot.effect==='income'?.32:.25))));
 }
+// Attack styles follow the visible weapons and props, in roster identity order.
+const demonAttackStyles=[
+  'FITGCFHBGCDRMH','sITGCFBuQCDCCH','dQTTCFQBGCsRMu',
+  'FIdGGQuuGCC',
+  'FIBGCsduGCDsudQRu',
+  'dITGCMRR','dITGCMVRR'
+];
+const bladeSweeps={s:[-1.1,1.1,.33],d:[-1.65,1.07,.87],u:[1.15,-1.25,1]};
+const wrathHorizontalAttacks=new WeakSet();
+const attackColors={F:'#ff7848',I:'#83e3ff',T:'#ffdc73',G:'#f7bb55',C:'#ec8ce8',
+  Q:'#c9e3f5',H:'#b8b6e7',B:'#81a5ff',D:'#78eac9',R:'#b88cff',M:'#f46c80',V:'#bcf475'};
+function demonAttackMotion(unit) {
+  return demonAttackStyles[unit.star-1][unit.identity];
+}
+function nextDemonAttackMotion(unit) {
+  if(unit.star!==7 || unit.identity!==0) return demonAttackMotion(unit);
+  if(wrathHorizontalAttacks.delete(unit)) return 's';
+  wrathHorizontalAttacks.add(unit);
+  return 'd';
+}
 function transformAttack(context,x,y,attack,dx,dy) {
   const age=effectAge(attack);
   const distance=Math.hypot(dx,dy)||1;
-  const melee=attack.role===0 || attack.role===2;
-  const anticipation=-3*Math.sin(Math.PI*Math.min(1,age/.2));
-  const strike=Math.sin(Math.PI*Math.max(0,(age-.2)/.8));
-  const travel=anticipation+strike*(melee?11:4);
-  context.translate(x+dx/distance*travel,y+dy/distance*travel-strike*(melee?2:5));
-  context.rotate(dx/distance*(melee?.17:-.1)*strike);
-  context.scale(1+strike*.10,1+strike*(melee?-.09:.12));
+  const horizontal=Math.abs(dx)<.001?1:Math.sign(dx);
+  const windup=Math.sin(Math.PI*Math.min(1,age/.32));
+  const strike=Math.sin(Math.PI*Math.max(0,(age-.25)/.75));
+  const blade=bladeSweeps[attack.motion];
+  const travel=strike*(blade || attack.motion==='Q'?10:4)-windup*3;
+  const rise=attack.motion==='u'?7:attack.motion==='d'?-2:attack.motion==='Q'?0:blade?2:4;
+  context.translate(x+dx/distance*travel,y+dy/distance*travel-strike*rise);
+  context.rotate(horizontal*(strike*(blade?.18:-.075)-windup*.09));
+  if(horizontal<0) context.scale(-1,1);
+}
+function drawDemonAttackFrame(context,unit,attack) {
+  if(!attack) return false;
+  const age=effectAge(attack);
+  if(age<.08 || age>=.92) return false;
+  const pose=age<.32?1:age<.64?2:3;
+  const frame=unit.star===7 && unit.identity===0 && pose===2 && attack.motion==='s'?4:pose;
+  const key=recipeKey(unit.star,unit.identity)+':'+frame;
+  const image=demonAttackImages.get(key);
+  if(!image) return false;
+  const {canvas,padding}=outlinedDemonImage(key,image,unit.star);
+  const scale=44/128;
+  context.imageSmoothingEnabled=false;
+  context.drawImage(canvas,-(116+padding)*scale,-(182+padding)*scale,canvas.width*scale,canvas.height*scale);
+  return true;
+}
+function paintDemonAttack(context,x,y,targetX,targetY,shot) {
+  const age=effectAge(shot);
+  const {motion,star}=shot;
+  const blade=bladeSweeps[motion];
+  const color=star===7 && blade?'#ff4238':attackColors[motion] ?? roleData[shot.role].color;
+  const facing=targetX<x?-1:1;
+  context.save();
+  if(blade && age>=.21 && age<.78) {
+    const sweep=Math.min(1,(age-.21)/.37);
+    const [start,end,flatten]=blade;
+    const tip=start+(end-start)*sweep;
+    const tail=start+(end-start)*Math.max(0,sweep-.68);
+    const radius=19+star*2.7;
+    context.translate(x+facing*10,y-21);
+    context.scale(facing,1);
+    context.rotate(Math.atan2(targetY-y,Math.max(20,Math.abs(targetX-x)))*.38);
+    context.globalAlpha=Math.min(1,(.78-age)*7);
+    context.fillStyle=color;
+    context.beginPath();
+    context.ellipse(0,0,radius,radius*flatten,0,tail,tip,end<start);
+    const mid=(tail+tip)/2;
+    context.quadraticCurveTo(radius*.51*Math.cos(mid),radius*flatten*.48*Math.sin(mid),
+      radius*Math.cos(tail),radius*flatten*Math.sin(tail));
+    context.closePath();context.fill();
+    context.strokeStyle='#fff2da';context.lineWidth=star>=5?2.5:1.5;
+    context.beginPath();
+    context.ellipse(0,0,radius,radius*flatten,0,tail,tip,end<start);context.stroke();
+  } else if(motion==='Q') {
+    const push=Math.sin(Math.PI*Math.max(0,(age-.23)/.77));
+    context.translate(x+facing*(13+push*17),y-18);
+    context.scale(facing,1);
+    context.strokeStyle=color;context.lineWidth=1+star*.25;
+    context.globalAlpha=push;
+    for(let i=0;i<2;i++) {
+      context.beginPath();context.ellipse(i*5,0,5+star,10+star*2,0,-1.2,1.2);context.stroke();
+    }
+  } else if(!blade) {
+    const handX=x+facing*(11+star*.6),handY=y-27;
+    const charge=Math.min(1,age/.34);
+    if(age<.38) {
+      context.strokeStyle=color;context.lineWidth=1+star*.2;
+      context.globalAlpha=charge;
+      context.beginPath();context.arc(handX,handY,3+charge*(3+star*.7),0,Math.PI*2);context.stroke();
+      context.fillStyle=color;
+      for(let i=0;i<3+star;i++) {
+        const angle=i*Math.PI*2/(3+star)-charge*2;
+        const radius=13-charge*6+star*.6;
+        context.fillRect(Math.round(handX+Math.cos(angle)*radius),Math.round(handY+Math.sin(angle)*radius),2,2);
+      }
+    } else if(age<.87) {
+      const progress=Math.min(1,(age-.38)/.32);
+      const vx=targetX-handX,vy=targetY-handY;
+      context.translate(handX+vx*progress,handY+vy*progress);
+      context.rotate(Math.atan2(vy,vx));
+      const z=2+star*.57;
+      context.globalAlpha=Math.min(1,(.87-age)*8);
+      context.fillStyle=color;
+      context.strokeStyle=color;
+      context.lineWidth=Math.max(1,z*.48);
+      context.beginPath();
+      if(motion==='T' || motion==='B') {
+        context.moveTo(-z*5,0);context.lineTo(-z*2,-z);
+        context.lineTo(-z*2,z);context.lineTo(z*2,0);context.stroke();
+      } else if(motion==='I' || motion==='D' || motion==='R') {
+        context.moveTo(z*2,0);context.lineTo(0,-z);context.lineTo(-z*3,0);context.lineTo(0,z);
+        context.closePath();context.fill();
+      } else if(motion==='M') {
+        context.moveTo(z*1.5,-z);context.lineTo(-z,-z*1.25);context.lineTo(-z*2,0);
+        context.lineTo(-z,z*1.25);context.lineTo(z*1.5,z);context.stroke();
+        context.fillRect(0,-z,z*.43,z*.7);context.fillRect(0,z*.3,z*.43,z*.7);
+      } else if(motion==='G' || motion==='C' || motion==='H') {
+        context.ellipse(0,0,z,z*(motion==='C'?.52:1),0,0,Math.PI*2);context.stroke();
+        context.fillRect(-z/3,-z/3,z*.67,z*.67);
+      } else {
+        for(let i=0;i<3;i++) context.fillRect(-z*(2+i*1.4),-z/2+i%2*z,z,z*.43);
+        context.arc(0,0,z,0,Math.PI*2);context.fill();
+      }
+    }
+  }
+  context.restore();
 }
 function paintSkillImpact(context,x,y,shot,age,area) {
   const star=shot.star ?? 1;
@@ -2203,11 +2313,12 @@ function paintExpedition(now) {
     if(zone.attack) transformAttack(arena,47,y,zone.attack,1,0);
     else arena.translate(47,y);
     if(zone.unit.star===7) paintSeventhAura(arena,zone.unit.identity,now);
-    drawDemon(arena,zone.unit,0,0,3);
+    if(!drawDemonAttackFrame(arena,zone.unit,zone.attack)) drawDemon(arena,zone.unit,0,0,3);
     arena.restore();
   }
   if(zone.attack) {
     const age=effectAge(zone.attack);
+    paintDemonAttack(arena,47,72,123,42,zone.attack);
     if(age>.22) paintSkillImpact(arena,123,42,zone.attack,(age-.22)/.78,22);
   }
 }

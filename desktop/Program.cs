@@ -33,7 +33,7 @@ internal static class Program
             if (LoadLibrary(loader) == IntPtr.Zero)
                 throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
 
-            foreach (string asset in new[] { "index.html", "style.css", "game.js", "assets/demon-sprites.js", "assets/angel-sprites.js", "LICENSE.txt", "NOTICE.txt" })
+            foreach (string asset in new[] { "index.html", "style.css", "game.js", "assets/demon-sprites.js", "assets/angel-sprites.js", "assets/demon-attack-sprites.js", "LICENSE.txt", "NOTICE.txt" })
                 Extract(assets, asset);
 
             AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;

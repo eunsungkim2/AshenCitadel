@@ -33,7 +33,7 @@ $arguments = @(
     "/resource:$winforms,Microsoft.Web.WebView2.WinForms.dll",
     "/resource:$loader,WebView2Loader.dll"
 )
-foreach ($asset in 'index.html', 'style.css', 'game.js', 'assets/demon-sprites.js', 'assets/angel-sprites.js') {
+foreach ($asset in 'index.html', 'style.css', 'game.js', 'assets/demon-sprites.js', 'assets/angel-sprites.js', 'assets/demon-attack-sprites.js') {
     $arguments += "/resource:$(Join-Path $project $asset),$asset"
 }
 foreach ($notice in 'LICENSE.txt', 'NOTICE.txt') {
