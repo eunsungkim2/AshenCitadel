@@ -246,7 +246,6 @@ function reset() {
     plan:wavePlan(1), text:'전장의 빈 발판을 선택한 뒤 랜덤 소환을 누르세요.'
   };
   $('speed').value = '1';
-  for(const panel of document.querySelectorAll('details[name="side-panel"]')) panel.open=false;
   mark();
 }
 function mark(text) { if (text) game.text=text; dirty=true; }
@@ -386,7 +385,7 @@ function chooseCell(index) {
   if (game.mergeSource!==null) {
     const source=game.board[game.mergeSource];
     if (index===game.mergeSource) { game.mergeSource=null; mark('합성 선택을 취소했습니다.'); return; }
-    if (target?.star!==source.star || target.identity!==source.identity) {
+    if (!isPairMatch(source,target)) {
       mark(unitName(source)+'와 같은 악마를 선택하세요.');
       return;
     }
@@ -414,7 +413,6 @@ function chooseCell(index) {
     return;
   }
   game.selected=index;
-  if (!target) $('summonPanel').open=true;
   mark();
 }
 function requirements(star,identity) {
@@ -447,6 +445,9 @@ function recipeMatch(star,role) {
 function canCombine() {
   return $('home').hidden && ['ready','wave'].includes(game.phase) && !game.paused && !$('dialog').open;
 }
+function isPairMatch(source,target) {
+  return Boolean(source && target && source.star===target.star && source.identity===target.identity);
+}
 function selectMerge() {
   const selected=game.board[game.selected];
   if (!canCombine() || !canPair(selected)) return;
@@ -455,7 +456,7 @@ function selectMerge() {
     mark('합성 선택을 취소했습니다.');
     return;
   }
-  if (!game.board.some((unit,index)=>index!==game.selected && unit?.star===selected.star && unit.identity===selected.identity)) {
+  if (!game.board.some((unit,index)=>index!==game.selected && isPairMatch(selected,unit))) {
     mark(unitName(selected)+'가 한 기 더 필요합니다.');
     return;
   }
@@ -732,12 +733,12 @@ function queueMission(index) {
   mark();
 }
 const eventChallenges=[
-  {name:'봉인의 감시자',round:1,hp:520,gold:38},
-  {name:'절벽의 사형수',round:20,hp:2600,gold:65},
-  {name:'망자의 수문장',round:40,hp:7000,gold:90},
-  {name:'붉은 감옥의 주인',round:65,hp:16500,gold:120},
-  {name:'망각의 거인',round:95,hp:32000,gold:150},
-  {name:'심연의 옥좌',round:125,hp:55000,gold:185}
+  {name:'봉인의 감시자',round:1,hp:1040,gold:38},
+  {name:'절벽의 사형수',round:20,hp:5200,gold:65},
+  {name:'망자의 수문장',round:40,hp:14000,gold:90},
+  {name:'붉은 감옥의 주인',round:65,hp:33000,gold:120},
+  {name:'망각의 거인',round:95,hp:64000,gold:150},
+  {name:'심연의 옥좌',round:125,hp:110000,gold:185}
 ];
 function sendExpedition() {
   const zone=game.expedition, boss=eventChallenges[zone.index];
@@ -1187,7 +1188,6 @@ function renderUI() {
   if (inspected!==lastInspected) {
     game.skillPreview=null;
     delete $('unitStats').dataset.unit;
-    $('towerPanel').open=Boolean(inspected);
     lastInspected=inspected;
   }
   $('towerSummary').textContent=inspected?unitName(inspected):'선택한 타워';
@@ -1290,7 +1290,7 @@ function renderUI() {
   }
 }
 const pixelColors = ['#ae899c','#ff995d','#ffb988','#ddcbff','#ffe481','#ffab99','#fff3aa'];
-const rankColors=['#fff9ee','#abb0ba','#76d99b','#67b5ff','#b684f6','#ffd160','#ff5e61'];
+const rankColors=['#abb0ba','#fff9ee','#76d99b','#67b5ff','#b684f6','#ffd160','#ff5e61'];
 function drawPixels(context, matrix, palette, x, y, scale) {
   const detail=scale/3;
   const fine=scale/9;
@@ -1705,14 +1705,22 @@ function paintBoard(now) {
       ctx.fillText('파견',p.x,p.y);
     }
   }
-  paintRange();
+  const mergeUnit=game.board[game.mergeSource];
+  if(!mergeUnit) paintRange();
   const motions=new Map();
   for(const shot of game.shots) if(shot.from) motions.set(shot.from,shot);
   const figures=game.enemies.map(enemy=>({p:project(enemy.x,enemy.y),enemy}));
   game.board.forEach((unit,i)=>{if(unit) figures.push({p:project(cells[i].x,cells[i].y),unit,cell:cells[i],i});});
-  const drawLayer=figure=>figure.enemy?2:figure.i===game.selected?1:0;
+  const drawLayer=figure=>isPairMatch(mergeUnit,figure.unit)?3:figure.enemy?2:figure.i===game.selected?1:0;
   figures.sort((a,b)=>drawLayer(a)-drawLayer(b) || a.p.y-b.p.y);
+  let mergeShadePainted=false;
   for(const {p,unit,enemy,cell,i} of figures) {
+    if(!mergeShadePainted && isPairMatch(mergeUnit,unit)) {
+      for(const shot of game.shots) paintEffect(shot);
+      ctx.fillStyle='#100c17bd';
+      ctx.fillRect(0,0,boardWidth,boardHeight);
+      mergeShadePainted=true;
+    }
     const x=Math.round(p.x),y=Math.round(p.y);
     if(unit) {
       ctx.beginPath();ctx.ellipse(x,y+12,18,9,0,0,Math.PI*2);
@@ -1744,7 +1752,7 @@ function paintBoard(now) {
       ctx.fillStyle='#ff8e86';ctx.fillRect(left,top-5,Math.round(width*Math.max(0,enemy.hp/enemy.max)),3);
     }
   }
-  for(const shot of game.shots) paintEffect(shot);
+  if(!mergeShadePainted) for(const shot of game.shots) paintEffect(shot);
 }
 let pointerWorld=null;
 function worldAtPointer(event) {

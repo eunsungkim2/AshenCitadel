@@ -383,7 +383,7 @@ internal sealed class GameWindow : Form
             if (game.board[4]) return 'repeated purchase';
             press('KeyQ');
             renderUI();
-            if (!game.board[4] || !document.getElementById('towerPanel').open ||
+            if (!game.board[4] || document.getElementById('towerPanel').open ||
                 !document.getElementById('unitStats').querySelector('canvas')) return 'purchase shortcut or inspector';
             press('KeyE');
             if (game.board[4]) return 'sell shortcut';
@@ -400,6 +400,8 @@ internal sealed class GameWindow : Form
             chooseCell(6);
             if (game.board[4]?.star !== 3 || game.board[4].role !== 0 || game.board[6] || !game.board[5]) return 'wave merge';
             renderUI();
+            if (document.getElementById('towerPanel').open) return 'merge opened inspector';
+            document.getElementById('towerPanel').querySelector('summary').click();
             if (document.querySelectorAll('#unitStats .unit-skill').length !== 1) return 'low-rank skill count';
             document.querySelector('#unitStats .range-button').click();
             if (game.skillPreview?.range !== 'attack') return 'skill range switch';

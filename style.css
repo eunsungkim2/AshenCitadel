@@ -20,7 +20,11 @@ body{margin:0}
 @keyframes gem-orbit{to{transform:translate(-50%,-50%) rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.gem-orbit{animation:none}}
 header,main{width:min(1480px,96%);margin:auto}
-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 20px;padding:10px 0}
+header{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px 20px;padding:10px 0;background:var(--bg)}
+header .soul-total{grid-column:2;grid-row:1;white-space:nowrap;font-weight:700}
+.soul-total strong{color:var(--ember);font-variant-numeric:tabular-nums}
+header .stats{grid-row:2;grid-column:1/-1;justify-self:center;width:min(100%,680px)}
+header #legacy{grid-column:3;grid-row:1;justify-self:end}
 h1,h2,p{margin:0}
 h1{font-size:clamp(1.05rem,2vw,1.65rem);color:var(--text)}
 h2{font-size:1.05rem;margin-bottom:10px}
@@ -120,7 +124,6 @@ dialog:has(.research-tree){width:min(760px,94vw);max-width:none}
   .panel:has(> details[open]){max-height:min(44dvh,460px);overflow:auto}
   .board-surface{width:min(calc(66vw - 38px),max(440px,calc(100dvh - 125px)))}
 }
-@media(max-width:700px){header .stats{order:3;flex-basis:100%}}
 @media(max-width:530px){aside{grid-template-columns:1fr}.stats,.controls{gap:8px 12px;font-size:.9rem}.phase{font-size:.8rem}}
 
 #enemyCodex li{display:flex;align-items:center;gap:6px}
