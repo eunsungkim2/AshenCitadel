@@ -241,7 +241,7 @@ function reset() {
     autoTime:7, speed:1, paused:false, bossDefeated:false, bossRewarded:false,bossTime:null,bossKills:0,cleared:0,
     researchEarned:0, played:0, pulseUsed:false, runStarted:false,
     active:activeMissions.map(()=>({auto:false,armed:false,queued:false,alive:false,clears:0,wait:0})),
-    expedition:{index:0,hp:eventChallenges[0].hp,unit:null,slot:null,wait:0},
+    expedition:{index:0,hp:eventChallenges[0].hp,unit:null,slot:null,wait:0,attack:null},
     tickets:[0,0,0,0], gambleResult:'',
     plan:wavePlan(1), text:'전장의 빈 발판을 선택한 뒤 랜덤 소환을 누르세요.'
   };
@@ -356,9 +356,12 @@ function draw() {
 function refund(unit) {
   return Math.floor(unit.spent*sellPercent/100);
 }
+function canSell(unit) {
+  return Boolean(unit && unit.star<=5);
+}
 function sellTower(index) {
   const unit=game.board[index];
-  if (game.phase!=='ready' || game.paused || !unit || unit.star>3) return;
+  if (game.phase!=='ready' || game.paused || !canSell(unit)) return;
   const amount=refund(unit);
   game.board[index]=null;
   game.mergeSource=null;
@@ -744,7 +747,7 @@ function sendExpedition() {
   const zone=game.expedition, boss=eventChallenges[zone.index];
   const unit=game.board[game.selected];
   if(!canCombine() || zone.unit || !boss || game.round<boss.round || !unit) return;
-  zone.slot=game.selected;zone.unit=unit;zone.wait=0;
+  zone.slot=game.selected;zone.unit=unit;zone.wait=0;zone.attack=null;
   game.board[zone.slot]=null;
   game.mergeSource=null;game.moving=false;
   mark(unitName(unit)+' · 특수 보스 구역으로 파견');
@@ -754,7 +757,7 @@ function recallExpedition() {
   if(!canCombine() || !zone.unit) return;
   game.board[zone.slot]=zone.unit;
   game.selected=zone.slot;
-  zone.slot=null;zone.unit=null;
+  zone.slot=null;zone.unit=null;zone.attack=null;
   checkFormations();mark('파견 악마가 원래 발판으로 돌아왔습니다.');
 }
 function stepExpedition(dt) {
@@ -767,6 +770,9 @@ function stepExpedition(dt) {
   zone.wait+=interval*(1-relicRank(6)*.025);
   const damage=dps(unit)*interval*(1+relicRank(0)*.06+relicRank(3)*.18)*(1+relicRank(5)*.08)*
     (unit.role===0?1+fireBossBonus[unit.star-1]:1);
+  const duration=.28+unit.star*.035;
+  zone.attack={role:unit.role,star:unit.star,effect:unit.role===1?'frost':unit.role===4?'curse':'hit',
+    time:duration,duration};
   zone.hp=Math.max(0,zone.hp-damage);
   if(zone.hp===0) {
     game.gold+=boss.gold;
@@ -976,7 +982,8 @@ function step(dt) {
     },1);
     const curseActive=target.curse>0;
     const bossBonus=target.boss?(1+relicRank(5)*.08)*(unit.role===0?1+fireBossBonus[unit.star-1]:1):1;
-    const execute=unit.star===7 && target.hp<=target.max*seventhSkill.threshold?seventhSkill.multiplier:1;
+    const executed=unit.star===7 && target.hp<=target.max*seventhSkill.threshold;
+    const execute=executed?seventhSkill.multiplier:1;
     const damage=dps(unit)*interval*damageBoost*support*(curseActive?skills.curse.enemyMultiplier:1)*bossBonus*execute;
     hitEnemy(target,damage);
     let effect='hit';
@@ -1008,7 +1015,9 @@ function step(dt) {
       if(unit.role===0) effect='splash';
     }
     playAttack(unit.role);
-    game.shots.push({from:cell,to:{x:target.x,y:target.y},role:unit.role,effect,support:support>1,burstRadius,time:.25});
+    const duration=.28+unit.star*.035;
+    game.shots.push({from:cell,to:{x:target.x,y:target.y},role:unit.role,star:unit.star,effect,
+      support:support>1,burstRadius,executed,time:duration,duration});
   }
   for (const enemy of game.enemies) {
     if (enemy.hp<=0) {
@@ -1017,7 +1026,8 @@ function step(dt) {
       const earners=live.filter(({unit,cell})=>unit.role===3 && distance(cell,enemy)<=attackRange(unit));
       const bonus=Math.max(0,...earners.map(({unit})=>incomeBonus(unit)));
       const bounty=enemy.boss || enemy.mission?Math.max(0,...earners.map(({unit})=>eliteBonus(unit))):0;
-      if (bonus) game.shots.push({to:{x:enemy.x,y:enemy.y},role:3,effect:'income',time:.32});
+      if (bonus) game.shots.push({to:{x:enemy.x,y:enemy.y},role:3,effect:'income',
+        star:Math.max(...earners.map(({unit})=>unit.star)),time:.32});
       game.incomeTicks+=skills.income.ticksPerKill+bonus+bounty+relicRank(1)+relicRank(3);
       game.gold+=Math.floor(game.incomeTicks/skills.income.ticksPerSoul)+(enemy.boss?20:0);
       game.incomeTicks%=skills.income.ticksPerSoul;
@@ -1222,7 +1232,7 @@ function renderUI() {
     merge.setAttribute('aria-keyshortcuts','R');
     actions.append(merge);
   }
-  if (selected?.star<=3) {
+  if (canSell(selected)) {
     const slot=game.selected;
     const sale=button('판매 · 영혼 '+refund(selected),()=>sellTower(slot),!ready);
     sale.className='sell';
@@ -1490,7 +1500,7 @@ function prepareBoard() {
   ctx.scale(sceneResolution,sceneResolution);
   makeGround();
 }
-function paintBoardDemon(unit,x,y) {
+function paintBoardDemon(unit,x,y,attack) {
   const key=recipeKey(unit.star,unit.identity);
   let sprite=demonCache.get(key);
   if(!sprite) {
@@ -1501,7 +1511,11 @@ function paintBoardDemon(unit,x,y) {
     if(!drawDemon(paint,unit,32,52,boardUnitScale)) return;
     demonCache.set(key,sprite);
   }
-  ctx.drawImage(sprite,x-32,y-52,64,60);
+  ctx.save();
+  if(attack) transformAttack(ctx,x,y,attack,attack.to.x-attack.from.x,attack.to.y-attack.from.y);
+  else ctx.translate(x,y);
+  ctx.drawImage(sprite,-32,-52,64,60);
+  ctx.restore();
 }
 const tileScale=48, boardLeft=52, boardTop=72;
 const project=(x,y)=>({x:boardLeft+x*tileScale,y:boardTop+y*tileScale});
@@ -1543,33 +1557,96 @@ function paintEffect(shot) {
     ctx.restore();
     return;
   }
+  const age=effectAge(shot);
+  const impact=Math.max(0,(age-.22)/.78);
   const color=roleData[role].color;
-  ctx.globalAlpha=Math.min(1,time*5);
-  if (from) {
+  ctx.save();
+  if(from) {
     const a=project(from.x,from.y);
-    ctx.strokeStyle=color;ctx.lineWidth=effect==='stun'?3:2;
-    ctx.beginPath();ctx.moveTo(a.x,a.y-8);
-    if (effect==='stun') {
-      ctx.lineTo((a.x+x)/2-4,(a.y+y)/2+8);
-      ctx.lineTo((a.x+x)/2+5,(a.y+y)/2-5);
-    }
-    ctx.lineTo(x,y);ctx.stroke();
+    const travel=Math.min(1,age/.30);
+    const head={x:a.x+(x-a.x)*travel,y:a.y-10+(y-a.y+10)*travel};
+    ctx.globalAlpha=Math.min(1,time*7);
+    ctx.strokeStyle=color;
+    ctx.lineWidth=shot.star>=5?3:2;
+    ctx.beginPath();
+    ctx.moveTo(a.x,a.y-10);
+    if(effect==='stun') ctx.lineTo((a.x+head.x)/2-4,(a.y+head.y)/2+5);
+    ctx.lineTo(head.x,head.y);
+    ctx.stroke();
     if(support) {
       ctx.fillStyle='#e7c4ff';
       ctx.fillRect(a.x-10,a.y-12,4,4);
       ctx.fillRect(a.x+7,a.y-12,4,4);
     }
   }
-  const age=1-time/(effect==='income'?.32:.25);
-  const radius=Math.round(4+age*(burstRadius?burstRadius*tileScale:effect==='hit'?9:18));
-  const dots=effect==='hit'?4:8;
-  ctx.fillStyle=effect==='income'?'#ffd970':color;
-  for(let i=0;i<dots;i++) {
-    const angle=i/dots*Math.PI*2+(effect==='curse'?age:0);
-    const dx=Math.round(Math.cos(angle)*radius),dy=Math.round(Math.sin(angle)*radius);
-    ctx.fillRect(x+dx-2,y+dy-2-(effect==='income'?Math.round(age*12):0),effect==='splash'?5:3,3);
+  if(impact>0) paintSkillImpact(ctx,x,y,shot,impact,burstRadius?burstRadius*tileScale:undefined);
+  ctx.restore();
+}
+function effectAge(shot) {
+  return Math.max(0,Math.min(1,1-shot.time/(shot.duration ?? (shot.effect==='income'?.32:.25))));
+}
+function transformAttack(context,x,y,attack,dx,dy) {
+  const age=effectAge(attack);
+  const distance=Math.hypot(dx,dy)||1;
+  const melee=attack.role===0 || attack.role===2;
+  const anticipation=-3*Math.sin(Math.PI*Math.min(1,age/.2));
+  const strike=Math.sin(Math.PI*Math.max(0,(age-.2)/.8));
+  const travel=anticipation+strike*(melee?11:4);
+  context.translate(x+dx/distance*travel,y+dy/distance*travel-strike*(melee?2:5));
+  context.rotate(dx/distance*(melee?.17:-.1)*strike);
+  context.scale(1+strike*.10,1+strike*(melee?-.09:.12));
+}
+function paintSkillImpact(context,x,y,shot,age,area) {
+  const star=shot.star ?? 1;
+  const {effect,role}=shot;
+  const color=roleData[role].color;
+  const radius=4+age*(area ?? (effect==='hit'?8+star:13+star*2));
+  const fragments=(effect==='hit'?3:5)+star*(effect==='hit'?1:2);
+  const accent=rankColors[star-1];
+  context.save();
+  context.globalAlpha=1-age;
+  context.fillStyle=effect==='income'?'#ffd970':color;
+  for(let i=0;i<fragments;i++) {
+    const angle=i*Math.PI*2/fragments+age*(effect==='curse'?1.7:.35);
+    const px=Math.round(x+Math.cos(angle)*radius);
+    const py=Math.round(y+Math.sin(angle)*radius-(effect==='income'?age*12:0));
+    const size=star>=5?4:2;
+    context.fillRect(px,py,size,effect==='frost'?size+2:size);
   }
-  ctx.globalAlpha=1;
+  if(star>=3) {
+    context.strokeStyle=color;
+    context.lineWidth=star>=5?2.5:1.5;
+    context.beginPath();
+    context.arc(x,y,radius,0,Math.PI*2);
+    context.stroke();
+  }
+  if(star>=5) {
+    context.strokeStyle=accent;
+    context.beginPath();
+    context.arc(x,y,radius*.57,age*Math.PI,(age+1.65)*Math.PI);
+    context.stroke();
+    context.fillStyle=accent;
+    for(let i=0;i<star-2;i++) {
+      const angle=i*Math.PI*2/(star-2)-age;
+      const px=x+Math.cos(angle)*radius*.74,py=y+Math.sin(angle)*radius*.74;
+      context.fillRect(px-3,py-1,7,2);
+      context.fillRect(px,py-3,2,7);
+    }
+  }
+  if(star===7) {
+    context.lineWidth=shot.executed?3:1.5;
+    context.strokeStyle=shot.executed?'#fff1da':accent;
+    context.beginPath();
+    for(let i=0;i<6;i++) {
+      const angle=i*Math.PI/3-age;
+      const px=x+Math.cos(angle)*radius*1.17,py=y+Math.sin(angle)*radius*1.17;
+      if(i===0) context.moveTo(px,py);
+      else context.lineTo(px,py);
+    }
+    context.closePath();
+    context.stroke();
+  }
+  context.restore();
 }
 function paintAura(x,y,star) {
   const radius=18+(star-4)*5;
@@ -1729,14 +1806,7 @@ function paintBoard(now) {
       if(unit.star>=6) paintAura(x,y,unit.star);
       const attack=motions.get(cell);
       const idle=Math.round(Math.sin(now/270+i*1.7)*(unit.star>=4?2:1.5));
-      let dx=0,dy=idle;
-      if(attack) {
-        const length=distance(cell,attack.to)||1;
-        const strength=Math.sin(Math.PI*(1-attack.time/.25))*(attack.effect==='hit'?5:8);
-        dx=Math.round((attack.to.x-cell.x)/length*strength);
-        dy+=Math.round((attack.to.y-cell.y)/length*strength);
-      }
-      paintBoardDemon(unit,x+dx,y+16+dy);
+      paintBoardDemon(unit,x,y+16+idle,attack);
       ctx.fillStyle=pixelColors[unit.star-1];
       for(let i=0;i<unit.star;i++) ctx.fillRect(x-2*unit.star+i*4,y+15,3,3);
     } else {
@@ -1885,7 +1955,19 @@ function paintExpedition(now) {
     arena.fillStyle='#433341';arena.fillRect(99,13,51,4);
     arena.fillStyle='#ff859d';arena.fillRect(99,13,Math.round(zone.hp/boss.hp*51),4);
   }
-  if(zone.unit) drawDemon(arena,zone.unit,47,72+Math.round(Math.sin(now/180)),3);
+  if(zone.unit) {
+    arena.save();
+    const y=72+Math.round(Math.sin(now/180));
+    if(zone.attack) {
+      transformAttack(arena,47,y,zone.attack,1,0);
+      drawDemon(arena,zone.unit,0,0,3);
+    } else drawDemon(arena,zone.unit,47,y,3);
+    arena.restore();
+  }
+  if(zone.attack) {
+    const age=effectAge(zone.attack);
+    if(age>.22) paintSkillImpact(arena,123,42,zone.attack,(age-.22)/.78,22);
+  }
 }
 function paintTitle() {
   const canvas=$('titleArt');
@@ -2058,6 +2140,8 @@ function frame(now) {
   if($('home').hidden && !document.hidden && !game.paused && !$('dialog').open && ['ready','wave'].includes(game.phase))
     game.played+=Math.min(elapsed,.35);
   game.shots=game.shots.filter(shot=>(shot.time-=elapsed)>0);
+  const expedition=game.expedition;
+  if(expedition.attack && (expedition.attack.time-=elapsed)<=0) expedition.attack=null;
   frameTime+=dt*game.speed;
   while(frameTime>=1/30) {step(1/30);frameTime-=1/30;}
   const countdown=Math.ceil(game.autoTime);

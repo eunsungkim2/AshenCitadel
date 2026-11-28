@@ -368,9 +368,15 @@ internal sealed class GameWindow : Form
             const beforeReward = game.gold;
             sellTower(0);
             if (game.gold !== beforeReward || game.board[0] || game.reserve.length) return 'reward sale';
-            game.board[0] = tower(4,0);
-            sellTower(0);
-            if (game.board[0]?.star !== 4) return 'four-star sale';
+            for (const star of [4,5,6,7]) {
+                const unit=tower(star,0);
+                unit.spent=100;
+                game.board[0]=unit;
+                const beforeSale=game.gold;
+                sellTower(0);
+                if (star<=5 ? game.board[0] || game.gold!==beforeSale+65 :
+                    game.board[0]!==unit || game.gold!==beforeSale) return star+'-star sale';
+            }
             reset();
             const press = (code, options = {}) => document.body.dispatchEvent(new KeyboardEvent('keydown',
                 {code, key:code.slice(-1).toLowerCase(), bubbles:true, cancelable:true, ...options}));
