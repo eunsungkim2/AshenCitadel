@@ -170,13 +170,13 @@ const ctx = $('board').getContext('2d');
 const drawPrice = 20;
 const gamblePrice=30;
 const gambleTable=[
-  {weight:450,label:'영혼 5',gold:5},
-  {weight:280,label:'영혼 18',gold:18},
-  {weight:160,label:'영혼 30',gold:30},
-  {weight:75,label:'1성 선택권',ticket:1},
+  {weight:550,label:'영혼 5',gold:5},
+  {weight:250,label:'영혼 15',gold:15},
+  {weight:130,label:'영혼 30',gold:30},
+  {weight:30,label:'1성 선택권',ticket:1},
   {weight:20,label:'2성 선택권',ticket:2},
   {weight:10,label:'3성 선택권',ticket:3},
-  {weight:5,label:'특수 악마 1~3성',special:true}
+  {weight:10,label:'특수 악마 1~3성',special:true}
 ];
 const sellPercent = 65;
 const roll = n => Math.floor(Math.random()*n);

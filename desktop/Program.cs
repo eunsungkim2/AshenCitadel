@@ -317,7 +317,7 @@ internal sealed class GameWindow : Form
             game.gold=100;
             gamble();
             if(game.gold!==75 || game.gambleResult!=='영혼 5') return 'gold gamble';
-            Math.random = ()=>.99;
+            Math.random = ()=>.985;
             gamble();
             if(game.gold!==45 || game.tickets[3]!==1) return 'ticket gamble';
             Math.random = ()=>.999;
