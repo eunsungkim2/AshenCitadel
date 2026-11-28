@@ -271,7 +271,7 @@ internal sealed class GameWindow : Form
             game.board[1]=recipeTower(4,0);game.board[2]=recipeTower(3,1);
             const beforeFormation=game.gold;
             checkFormations();checkFormations();
-            if(game.gold!==beforeFormation+55 || !game.passiveDone.has(0)) return 'single formation payout';
+            if(game.gold!==beforeFormation+41 || !game.passiveDone.has(0)) return 'single formation payout';
             beginGame();
             Math.random=()=>.999;
             offerRelics(10,()=>{game.phase='ready';});

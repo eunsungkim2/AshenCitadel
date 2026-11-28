@@ -107,7 +107,7 @@ function wavePlan(round) {
 const skills = {
   slow: { factor:.70, duration:1.2 },
   stun: { base:.20, perStar:.04, legacy:.03, duration:.46, bossDuration:.22 },
-  income: { ticksPerSoul:8, ticksPerKill:4 },
+  income: { ticksPerSoul:8, ticksPerKill:3 },
   curse: { radius:2, allyMultiplier:1.14, enemyMultiplier:1.16, duration:1.6 }
 };
 const eliteSkills = [
@@ -274,9 +274,9 @@ function recordAcquisition(unit) {
   }
 }
 const formationMissions=[
-  {name:'화염과 서리',units:[[4,0],[3,1]],gold:55},
-  {name:'황금 낙뢰',units:[[4,3],[3,2]],gold:55},
-  {name:'균열과 예언',units:[[4,10],[3,4]],gold:65}
+  {name:'화염과 서리',units:[[4,0],[3,1]],gold:41},
+  {name:'황금 낙뢰',units:[[4,3],[3,2]],gold:41},
+  {name:'균열과 예언',units:[[4,10],[3,4]],gold:49}
 ];
 function checkFormations() {
   formationMissions.forEach(({name,units,gold},index)=>{
@@ -335,6 +335,16 @@ function canDraw() {
   return canCombine() && !game.moving && game.mergeSource===null &&
     game.selected!==game.expedition.slot && game.board[game.selected]===null && (game.reserve.length>0 || game.gold>=drawPrice);
 }
+function ownedUnitCount(star,identity) {
+  const matches=unit=>unit?.star===star && unit.identity===identity;
+  return game.board.filter(matches).length+game.reserve.filter(matches).length+Number(matches(game.expedition.unit));
+}
+function randomDrawIdentity(star) {
+  if(star<4) return roll(families.length);
+  const weights=families.map((_,identity)=>2**-ownedUnitCount(star,identity));
+  let value=Math.random()*weights.reduce((total,weight)=>total+weight,0);
+  return weights.findIndex(weight=>(value-=weight)<0);
+}
 function draw() {
   if (!canDraw()) return;
   if (game.reserve.length) {
@@ -343,7 +353,7 @@ function draw() {
   }
   let value=roll(100);
   const star=odds().findIndex(probability=>(value-=probability)<0)+1;
-  const unit=recipeTower(star,roll(families.length));
+  const unit=recipeTower(star,randomDrawIdentity(star));
   unit.spent=drawPrice;
   game.gold-=drawPrice;
   game.runStarted=true;
@@ -381,6 +391,9 @@ function placeReward(index,unit) {
   mark(unitName(unit)+' 배치 완료');
   checkFormations();
 }
+function canReposition(unit) {
+  return Boolean(unit && unit.star>=4 && (unit.star>=6 || !unit.moved));
+}
 function chooseCell(index) {
   if (!['ready','wave'].includes(game.phase) || game.paused || game.bossFall) return;
   if(index===game.expedition.slot) {mark('파견한 악마가 돌아올 자리입니다. G로 복귀시킬 수 있습니다.');return;}
@@ -398,14 +411,14 @@ function chooseCell(index) {
   if (game.moving) {
     const source=game.selected, unit=game.board[source];
     if (index===source) { game.moving=false; mark(); return; }
-    if (game.phase!=='ready' || !unit || unit.star<4 || unit.moved || (target?.star>=4 && target.moved)) {
+    if (game.phase!=='ready' || !canReposition(unit) || (target?.star>=4 && !canReposition(target))) {
       mark('이동 기회가 남은 타워를 선택하세요.');
       return;
     }
     game.board[index]=unit;
     game.board[source]=target;
-    unit.moved=true;
-    if (target?.star>=4) target.moved=true;
+    if(unit.star<6) unit.moved=true;
+    if(target?.star>=4 && target.star<6) target.moved=true;
     game.selected=index;
     game.moving=false;
     mark(target?'두 타워의 자리를 바꿨습니다.':'타워를 이동했습니다.');
@@ -441,7 +454,11 @@ function recipeSlots(star,role,inventory=game.board) {
     return index;
   });
 }
+function canCraftUnit(star,identity) {
+  return star<6 || ownedUnitCount(star,identity)===0;
+}
 function recipeMatch(star,role) {
+  if(!canCraftUnit(star,role)) return null;
   const slots=recipeSlots(star,role);
   return slots.includes(-1)?null:slots;
 }
@@ -468,7 +485,7 @@ function selectMerge() {
   mark(unitName(selected)+'와 같은 두 번째 악마를 클릭하세요.');
 }
 function combine(indices, unit) {
-  if (!canCombine() || !indices) return;
+  if (!canCombine() || !indices || !canCraftUnit(unit.star,unit.identity)) return;
   const slot=indices.includes(game.selected)?game.selected:indices[0];
   unit.spent=indices.reduce((sum,index)=>sum+game.board[index].spent,0);
   for (const index of indices) game.board[index]=null;
@@ -701,7 +718,7 @@ function advanceRound(round) {
   game.phase='ready';
   game.plan=wavePlan(game.round);
   game.autoTime=7;
-  game.gold+=11+Math.floor(round*.15);
+  game.gold+=8+Math.floor(round*.11);
   mark(round+'라운드 종료 · 완료 보상을 받았습니다.');
   if (round%10===0 && game.bossDefeated) {
     mark(round+'라운드 종료 · '+bossTicketTier(round)+'성 선택권을 받았습니다.');
@@ -710,13 +727,13 @@ function advanceRound(round) {
 const bossTicketTier=round=>profile.choice || round>=50?3:round>=20?2:1;
 const missionTicketTier=round=>round>=75?3:round>=25?2:1;
 const activeMissions=[
-  {name:'잿더미의 추적자',unlock:1,cooldown:28,gold:14,type:'swift',hp:65},
-  {name:'철벽의 징수관',unlock:10,cooldown:34,gold:20,type:'tank',hp:155},
-  {name:'도망친 악령',unlock:20,cooldown:38,gold:25,type:'swift',hp:250},
-  {name:'피의 파수꾼',unlock:35,cooldown:42,gold:32,type:'tank',hp:390},
-  {name:'노말의 사형수',unlock:50,cooldown:46,gold:39,type:'tank',hp:540},
-  {name:'허공의 추격자',unlock:70,cooldown:50,gold:47,type:'swift',hp:690},
-  {name:'하드의 감시자',unlock:100,cooldown:55,gold:60,type:'tank',hp:940}
+  {name:'잿더미의 추적자',unlock:1,cooldown:28,gold:10,type:'swift',hp:65},
+  {name:'철벽의 징수관',unlock:10,cooldown:34,gold:15,type:'tank',hp:155},
+  {name:'도망친 악령',unlock:20,cooldown:38,gold:19,type:'swift',hp:250},
+  {name:'피의 파수꾼',unlock:35,cooldown:42,gold:24,type:'tank',hp:390},
+  {name:'노말의 사형수',unlock:50,cooldown:46,gold:29,type:'tank',hp:540},
+  {name:'허공의 추격자',unlock:70,cooldown:50,gold:35,type:'swift',hp:690},
+  {name:'하드의 감시자',unlock:100,cooldown:55,gold:45,type:'tank',hp:940}
 ];
 function queueMission(index) {
   if(!canCombine() || game.round<activeMissions[index].unlock) return;
@@ -737,12 +754,12 @@ function queueMission(index) {
   mark();
 }
 const eventChallenges=[
-  {name:'봉인의 감시자',round:1,hp:1040,gold:38},
-  {name:'절벽의 사형수',round:20,hp:5200,gold:65},
-  {name:'망자의 수문장',round:40,hp:14000,gold:90},
-  {name:'붉은 감옥의 주인',round:65,hp:33000,gold:120},
-  {name:'망각의 거인',round:95,hp:64000,gold:150},
-  {name:'심연의 옥좌',round:125,hp:110000,gold:185}
+  {name:'봉인의 감시자',round:1,hp:1040,gold:28},
+  {name:'절벽의 사형수',round:20,hp:5200,gold:49},
+  {name:'망자의 수문장',round:40,hp:14000,gold:68},
+  {name:'붉은 감옥의 주인',round:65,hp:33000,gold:90},
+  {name:'망각의 거인',round:95,hp:64000,gold:112},
+  {name:'심연의 옥좌',round:125,hp:110000,gold:139}
 ];
 function sendExpedition() {
   const zone=game.expedition, boss=eventChallenges[zone.index];
@@ -875,8 +892,8 @@ function offerRelics(round,finish) {
     id,weight:relic.tier==='희귀'?6:10,value:relic.tier==='희귀'?'gold':'silver'
   }]);
   const tier=difficultyIndex(round);
-  for(const [base,weight,value] of [[20,14,'bronze'],[40,9,'silver'],[65,5,'gold']]) {
-    candidates.push({gold:base+tier*10,weight,value,label:'영혼 '+(base+tier*10),effect:'즉시 지급'});
+  for(const [base,weight,value] of [[15,14,'bronze'],[30,9,'silver'],[49,5,'gold']]) {
+    candidates.push({gold:base+tier*7,weight,value,label:'영혼 '+(base+tier*7),effect:'즉시 지급'});
   }
   for(const [star,weight,value] of [[1,10,'bronze'],[2,7,'silver'],[3,4,'gold']]) {
     candidates.push({star,weight,value,label:star+'성 선택권',effect:'원하는 정규 악마 한 기 선택'});
@@ -1043,12 +1060,12 @@ function step(dt) {
       if (bonus) game.shots.push({to:{x:enemy.x,y:enemy.y},role:3,effect:'income',
         star:Math.max(...earners.map(({unit})=>unit.star)),time:.32});
       game.incomeTicks+=skills.income.ticksPerKill+bonus+bounty+relicRank(1)+relicRank(3);
-      game.gold+=Math.floor(game.incomeTicks/skills.income.ticksPerSoul)+(enemy.boss?20:0);
+      game.gold+=Math.floor(game.incomeTicks/skills.income.ticksPerSoul)+(enemy.boss?15:0);
       game.incomeTicks%=skills.income.ticksPerSoul;
       if (enemy.mission) {
         const tier=missionTicketTier(game.round);
-        game.missionKills++;game.gold+=12;awardTicket(tier);
-        mark('미션 몬스터 처치 · 영혼 12 및 '+tier+'성 선택권 획득');
+        game.missionKills++;game.gold+=9;awardTicket(tier);
+        mark('미션 몬스터 처치 · 영혼 9 및 '+tier+'성 선택권 획득');
       }
       if(enemy.challenge!==undefined) {
         const mission=activeMissions[enemy.challenge], state=game.active[enemy.challenge];
@@ -1195,7 +1212,7 @@ function renderUI() {
   $('draw').disabled=!canDraw();
   const emptySelected=game.selected!==game.expedition.slot && game.board[game.selected]===null;
   $('drawHint').textContent=emptySelected?'선택한 발판에 즉시 소환합니다.':'빈 발판을 먼저 선택하세요.';
-  $('odds').textContent=odds().map((rate,i)=>i+1+'성 '+rate+'%').join(' / ');
+  $('odds').textContent=odds().map((rate,i)=>i+1+'성 '+rate+'%').join(' / ')+' · 4~5성은 같은 악마 보유 수에 따라 개별 확률 감소';
   const reserve=$('reserve');
   reserve.className='chips';
   reserve.replaceChildren(...game.reserve.map(unit=>button(unitName(unit),()=>{
@@ -1252,18 +1269,19 @@ function renderUI() {
     sale.title=ready?'실제 소환 비용의 '+sellPercent+'%를 회수합니다. 소수점은 버립니다.':'준비 시간에만 판매할 수 있습니다.';
     actions.append(sale);
   }
-  if(selected?.star>=4) actions.append(button(selected.moved?'이동 기회 사용 완료':game.moving?'이동 취소':'이동 · 자리 교환',()=>{
-    game.moving=!game.moving; game.pick=null; mark(game.moving?'목적지 또는 교환할 타워를 선택하세요.':'이동 취소');
-  },!ready || selected.moved,game.moving));
+  if(selected?.star>=4) actions.append(button(!canReposition(selected)?'이동 기회 사용 완료':game.moving?'이동 취소':'이동 · 자리 교환',()=>{
+    game.moving=!game.moving; game.pick=null; game.mergeSource=null; mark(game.moving?'목적지 또는 교환할 타워를 선택하세요.':'이동 취소');
+  },!ready || !canReposition(selected),game.moving));
   for(const [star,entries] of recipeButtons) entries.forEach(({action,row,status,materials,progress},identity)=>{
     const previouslyCrafted=crafted.has(recipeKey(star,identity));
     const slots=recipeSlots(star,identity);
     const count=slots.filter(index=>index>=0).length;
-    action.disabled=!canCombine() || count<slots.length;
+    const available=canCraftUnit(star,identity);
+    action.disabled=!canCombine() || !available || count<slots.length;
     progress.textContent='재료 준비 '+Math.round(count/slots.length*100)+'%';
     materials.forEach((material,i)=>material.classList.toggle('available',slots[i]>=0));
     row.classList.toggle('crafted',previouslyCrafted);
-    status.textContent=previouslyCrafted?'제작 기록 있음':'미제작';
+    status.textContent=!available?'현재 보유 중 · 중복 제작 불가':previouslyCrafted?'제작 기록 있음':'미제작';
   });
   const passive=$('missions');
   const passiveState=game.seen.slice(1).map(seen=>seen.size).join(':')+':'+[...game.passiveDone]+':'+game.missionKills;
