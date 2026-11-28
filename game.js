@@ -238,7 +238,7 @@ function reset() {
     enemies:[], shots:[], relics:relicCatalog.map(()=>0), incomeTicks:0,
     selected:null, pick:null, moving:false, travel:0, nextSpawn:0, spawned:0, count:0,
     mergeSource:null, skillPreview:null,
-    autoTime:7, speed:1, paused:false, bossDefeated:false, bossRewarded:false,bossTime:null,bossKills:0,cleared:0,
+    autoTime:7, speed:1, paused:false, enemyDeaths:[], bossFall:null, bossDefeated:false, bossRewarded:false,bossTime:null,bossKills:0,cleared:0,
     researchEarned:0, played:0, pulseUsed:false, runStarted:false,
     active:activeMissions.map(()=>({auto:false,armed:false,queued:false,alive:false,clears:0,wait:0})),
     expedition:{index:0,hp:eventChallenges[0].hp,unit:null,slot:null,wait:0,attack:null},
@@ -382,7 +382,7 @@ function placeReward(index,unit) {
   checkFormations();
 }
 function chooseCell(index) {
-  if (!['ready','wave'].includes(game.phase) || game.paused) return;
+  if (!['ready','wave'].includes(game.phase) || game.paused || game.bossFall) return;
   if(index===game.expedition.slot) {mark('파견한 악마가 돌아올 자리입니다. G로 복귀시킬 수 있습니다.');return;}
   const target=game.board[index];
   if (game.mergeSource!==null) {
@@ -446,7 +446,7 @@ function recipeMatch(star,role) {
   return slots.includes(-1)?null:slots;
 }
 function canCombine() {
-  return $('home').hidden && ['ready','wave'].includes(game.phase) && !game.paused && !$('dialog').open;
+  return $('home').hidden && ['ready','wave'].includes(game.phase) && !game.bossFall && !game.paused && !$('dialog').open;
 }
 function isPairMatch(source,target) {
   return Boolean(source && target && source.star===target.star && source.identity===target.identity);
@@ -690,6 +690,7 @@ function useResearchSkill() {
   mark('공허 파동 · 전장의 적을 2.5초간 둔화');
 }
 function toggleWave() {
+  if(game.bossFall) return;
   if (game.phase==='wave') {
     game.paused=!game.paused;
     mark(game.paused?'웨이브를 정지했습니다.':'웨이브를 이어서 진행합니다.');
@@ -803,7 +804,7 @@ function updateMissions(dt) {
 }
 function completeWave() {
   const round=game.round;
-  if(game.cleared>=round) return;
+  if(game.bossFall || game.cleared>=round) return;
   game.cleared=round;
   if(game.bossDefeated && round%10===0) grantBossRewards();
   profile.best=Math.max(profile.best,round);
@@ -942,7 +943,7 @@ function hitEnemy(enemy,damage) {
   enemy.hp-=damage-absorbed;
 }
 function step(dt) {
-  if (!$('home').hidden || game.paused || $('dialog').open) return;
+  if (!$('home').hidden || game.paused || game.bossFall || $('dialog').open) return;
   if(['ready','wave'].includes(game.phase)) {updateMissions(dt);stepExpedition(dt);}
   if (game.phase==='ready') {
     if (profile.auto) {
@@ -1022,7 +1023,14 @@ function step(dt) {
   for (const enemy of game.enemies) {
     if (enemy.hp<=0) {
       game.kills++;
-      if (enemy.boss) {game.bossDefeated=true;game.bossTime=null;game.bossKills++;grantBossRewards();}
+      const death={key:angelKey(enemy),x:enemy.x,y:enemy.y,size:enemySpriteSize(enemy),age:0};
+      if(enemy.boss) {
+        game.bossFall={...death,duration:reducedAuraMotion.matches ? .48 : 1.20};
+        game.bossDefeated=true;
+        game.bossTime=null;
+        game.bossKills++;
+        grantBossRewards();
+      } else game.enemyDeaths.push(death);
       const earners=live.filter(({unit,cell})=>unit.role===3 && distance(cell,enemy)<=attackRange(unit));
       const bonus=Math.max(0,...earners.map(({unit})=>incomeBonus(unit)));
       const bounty=enemy.boss || enemy.mission?Math.max(0,...earners.map(({unit})=>eliteBonus(unit))):0;
@@ -1157,12 +1165,12 @@ function renderUI() {
   $('life').textContent=game.life+' / '+maxLife();
   $('gold').textContent=game.gold;
   $('kills').textContent=game.kills;
-  $('phase').textContent=game.phase==='over'?'게임 종료':game.phase==='relic'?'보스 보상 선택':game.paused?'일시정지':game.phase==='wave'?
+  $('phase').textContent=game.bossFall?'보스 격파':game.phase==='over'?'게임 종료':game.phase==='relic'?'보스 보상 선택':game.paused?'일시정지':game.phase==='wave'?
     (game.round%10===0?'보스전':'전투 중')+' · '+(game.count-game.spawned+game.enemies.length)+'마리'+
       (game.bossTime===null?'':' · 보스 '+Math.ceil(game.bossTime)+'초'):
     '준비 시간'+(profile.auto?' · '+Math.max(0,Math.ceil(game.autoTime))+'초':'');
   $('notice').textContent=game.text;
-  $('wave').disabled=!['ready','wave'].includes(game.phase);
+  $('wave').disabled=Boolean(game.bossFall) || !['ready','wave'].includes(game.phase);
   const preview=$('wavePreview');
   if (preview.dataset.round!==String(game.round)) {
     preview.dataset.round=String(game.round);
@@ -1840,6 +1848,72 @@ function makeGround() {
     ctx.fillStyle=color;ctx.font='bold 16px system-ui';ctx.textAlign='center';ctx.fillText(text,p.x,p.y-34);
   }
 }
+function enemySpriteSize(enemy) {
+  return enemy.boss?58:enemy.type==='tank'?37:enemy.type==='swarm'?26:32;
+}
+const deathPixels=new Map();
+const dissolveDuration=.54;
+function deathFragments(key,image) {
+  if(deathPixels.has(key)) return deathPixels.get(key);
+  const canvas=document.createElement('canvas');
+  canvas.width=canvas.height=12;
+  const context=canvas.getContext('2d');
+  context.drawImage(image,0,0,12,12);
+  const rgba=context.getImageData(0,0,12,12).data;
+  const fragments=[];
+  for(let i=0;i<144;i++) {
+    const offset=i*4;
+    if(rgba[offset+3]<110 || i%3===0) continue;
+    fragments.push({x:(i%12+.5)/12,y:(Math.floor(i/12)+.5)/12,
+      color:`rgb(${rgba[offset]},${rgba[offset+1]},${rgba[offset+2]})`,scatter:Math.sin(i*8.73)});
+  }
+  deathPixels.set(key,fragments);
+  return fragments;
+}
+function paintEnemyDissolve(death) {
+  const image=angelImages.get(death.key);
+  if(!image) return;
+  const {x,y}=project(death.x,death.y);
+  const left=x-death.size/2, top=y+10-death.size*122/128;
+  const cutoff=Math.max(0,1-death.age/.34);
+  ctx.save();
+  ctx.imageSmoothingEnabled=false;
+  if(cutoff>0) {
+    ctx.drawImage(image,0,0,image.width,image.height*cutoff,
+      left,top,death.size,death.size*cutoff);
+  }
+  for(const pixel of deathFragments(death.key,image)) {
+    if(pixel.y<cutoff) continue;
+    const travel=(death.age-(1-pixel.y)*.34)/.20;
+    if(travel>=1) continue;
+    ctx.globalAlpha=1-travel;
+    ctx.fillStyle=pixel.color;
+    ctx.fillRect(Math.round(left+pixel.x*death.size+pixel.scatter*travel*17),
+      Math.round(top+pixel.y*death.size-travel*(7+Math.abs(pixel.scatter)*7)),2,2);
+  }
+  ctx.restore();
+}
+function paintBossFall(death) {
+  const {x,y}=project(death.x,death.y);
+  const progress=Math.min(1,death.age/death.duration);
+  const fall=Math.min(1,Math.max(0,(progress-.18)/.62));
+  const direction=x>boardWidth/2?-1:1;
+  ctx.save();
+  ctx.fillStyle='#0c0815d9';
+  ctx.globalAlpha=Math.min(1,progress*12,(1-progress)*9);
+  ctx.fillRect(0,0,boardWidth,boardHeight);
+  ctx.globalAlpha=1;
+  const light=ctx.createRadialGradient(x,y-13,3,x,y-13,62);
+  light.addColorStop(0,'#ffdea65c');
+  light.addColorStop(1,'#ffdea600');
+  ctx.fillStyle=light;
+  ctx.fillRect(x-62,y-75,124,124);
+  ctx.translate(x+direction*fall*13,y+10+fall*7);
+  if(!reducedAuraMotion.matches) ctx.rotate(direction*fall*fall*1.45);
+  ctx.globalAlpha=Math.min(1,(1-progress)*5);
+  drawAngel(ctx,death.key,0,0,death.size,'brightness(1.24)');
+  ctx.restore();
+}
 function paintRankStar(x,y,radius,color) {
   ctx.beginPath();
   for(let point=0;point<10;point++) {
@@ -1919,7 +1993,7 @@ function paintBoard(now) {
       paintBoardDemon(unit,x,y+16+idle,attack,now);
       paintRankBadge(x,y+18,unit.star,now);
     } else {
-      const size=enemy.boss?58:enemy.type==='tank'?37:enemy.type==='swarm'?26:32;
+      const size=enemySpriteSize(enemy);
       const stride=enemy.stun>0?null:enemy.progress*(enemy.boss?11:17);
       const foot=y+10, top=foot-size, width=size*.72, left=x-width/2;
       const filter=enemy.stun>0?'brightness(1.55)':enemy.slow>0?'saturate(.55) brightness(1.14)':
@@ -1930,6 +2004,8 @@ function paintBoard(now) {
     }
   }
   if(!mergeShadePainted) for(const shot of game.shots) paintEffect(shot);
+  for(const death of game.enemyDeaths) paintEnemyDissolve(death);
+  if(game.bossFall) paintBossFall(game.bossFall);
 }
 let pointerWorld=null;
 function worldAtPointer(event) {
@@ -2244,18 +2320,35 @@ function frame(now) {
   const elapsed=(now-(last||now))/1000;
   const dt=Math.min(.09,elapsed);
   last=now;
-  if($('home').hidden && !document.hidden && !game.paused && !$('dialog').open && ['ready','wave'].includes(game.phase))
+  if($('home').hidden && !document.hidden && !game.bossFall && !game.paused && !$('dialog').open && ['ready','wave'].includes(game.phase))
     game.played+=Math.min(elapsed,.35);
-  game.shots=game.shots.filter(shot=>(shot.time-=elapsed)>0);
-  const expedition=game.expedition;
-  if(expedition.attack && (expedition.attack.time-=elapsed)<=0) expedition.attack=null;
-  frameTime+=dt*game.speed;
-  while(frameTime>=1/30) {step(1/30);frameTime-=1/30;}
+  let battleNow=now;
+  if(game.bossFall) {
+    const fall=game.bossFall;
+    fall.startedAt ??= now;
+    battleNow=fall.startedAt;
+    fall.age+=dt;
+    frameTime=0;
+    if(fall.age>=fall.duration) {
+      game.bossFall=null;
+      mark();
+    }
+  } else {
+    game.shots=game.shots.filter(shot=>(shot.time-=elapsed)>0);
+    game.enemyDeaths=game.enemyDeaths.filter(death=>(death.age+=dt)<dissolveDuration);
+    const expedition=game.expedition;
+    if(expedition.attack && (expedition.attack.time-=elapsed)<=0) expedition.attack=null;
+    frameTime+=dt*game.speed;
+    while(frameTime>=1/30 && !game.bossFall) {
+      step(1/30);
+      frameTime-=1/30;
+    }
+  }
   const countdown=Math.ceil(game.autoTime);
   if(countdown!==lastCountdown) {dirty=true;lastCountdown=countdown;}
   if(dirty) {renderUI();updateTowerTooltip();dirty=false;}
   if ($('home').hidden && now-lastPaint>=31) {
-    paintBoard(now);paintExpedition(now);lastPaint=now;
+    paintBoard(battleNow);paintExpedition(battleNow);lastPaint=now;
   }
   requestAnimationFrame(frame);
 }
