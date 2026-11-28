@@ -1572,7 +1572,7 @@ function prepareBoard() {
   ctx.scale(sceneResolution,sceneResolution);
   makeGround();
 }
-function paintBoardDemon(unit,x,y,attack,now=0) {
+function combatDemonSprite(unit) {
   const key=recipeKey(unit.star,unit.identity);
   let sprite=demonCache.get(key);
   if(!sprite) {
@@ -1583,12 +1583,62 @@ function paintBoardDemon(unit,x,y,attack,now=0) {
     if(!drawDemon(paint,unit,32,52,boardUnitScale)) return;
     demonCache.set(key,sprite);
   }
-  ctx.save();
-  if(attack) transformAttack(ctx,x,y,attack,attack.to.x-attack.from.x,attack.to.y-attack.from.y);
-  else ctx.translate(x,y);
-  if(unit.star===7) paintSeventhAura(ctx,unit.identity,now);
-  if(!drawDemonAttackFrame(ctx,unit,attack)) ctx.drawImage(sprite,-32,-52,64,60);
-  ctx.restore();
+  return sprite;
+}
+function paintCombatDemon(context,unit,x,y,attack,now,dx=1,dy=0) {
+  const sprite=combatDemonSprite(unit);
+  if(!sprite) return;
+  context.save();
+  context.translate(x,y);
+  context.imageSmoothingEnabled=false;
+  if(unit.star===7) paintSeventhAura(context,unit.identity,now);
+  const facing=dx<0?-1:1;
+  const age=attack?effectAge(attack):0;
+  const idle=Math.sin(now/270+unit.identity*.8);
+  const windup=Math.sin(Math.PI*Math.min(1,age/.32));
+  const strike=Math.sin(Math.PI*Math.max(0,(age-.24)/.76));
+  const blade=attack && bladeSweeps[attack.motion];
+  const reach=(blade?7:4)*strike-3*windup;
+  const dip=attack?.motion==='d'?3:attack?.motion==='u'?-1.6:1.7;
+  const vertical=dy/(Math.hypot(dx,dy)||1);
+  if(!drawPlantedAttackFrame(context,unit,attack,sprite,age,facing)) {
+    // One continuous warp from the boot line through knees, hips, and shoulders.
+    const lean=attack?reach*(Math.abs(dx)/(Math.hypot(dx,dy)||1)*.65+.35)*facing:idle*.6;
+    const bend=attack?1.5*windup+(dip+vertical*1.6)*strike:idle*.65;
+    const edge=height=>{
+      const t=Math.max(0,Math.min(1,(height-5)/35));
+      return [lean*t*t, -height+bend*t*t];
+    };
+    for(let height=52;height>4;height-=2) {
+      const [a,top]=edge(height);
+      const [b,bottom]=edge(height-2);
+      drawGroundedBand(context,sprite,(52-height)*sceneResolution,2*sceneResolution,-32+(a+b)/2,top,64,bottom);
+    }
+    drawGroundedBoots(context,sprite,unit,4);
+  }
+  context.restore();
+}
+function drawGroundedBand(context,sprite,sourceY,sourceHeight,x,top,width,bottom) {
+  // Snap shared band edges to the scene's device pixel grid.
+  const y=Math.round(top*sceneResolution)/sceneResolution;
+  const end=Math.round(bottom*sceneResolution)/sceneResolution;
+  context.drawImage(sprite,0,sourceY,sprite.width,sourceHeight,
+    Math.round(x*sceneResolution)/sceneResolution,y,width,end-y);
+}
+function drawGroundedBoots(context,sprite,unit,height) {
+  const sourceY=(52-height)*sceneResolution;
+  const anchors=unit.star===7 && demonPoseBoots[unit.identity];
+  if(!anchors) {
+    context.drawImage(sprite,0,sourceY,sprite.width,sprite.height-sourceY,-32,-height,64,8+height);
+    return;
+  }
+  // Keep both boots, leaving low weapons and trailing fabric out of the fixed layer.
+  for(const foot of anchors.idle) {
+    const center=(foot/192-.5)*44;
+    const x=Math.round((32+center-3.5)*sceneResolution)/sceneResolution;
+    context.drawImage(sprite,x*sceneResolution,sourceY,7*sceneResolution,sprite.height-sourceY,
+      x-32,-height,7,8+height);
+  }
 }
 const tileScale=48, boardLeft=52, boardTop=72;
 const project=(x,y)=>({x:boardLeft+x*tileScale,y:boardTop+y*tileScale});
@@ -1692,32 +1742,42 @@ function nextDemonAttackMotion(unit) {
   wrathHorizontalAttacks.add(unit);
   return 'd';
 }
-function transformAttack(context,x,y,attack,dx,dy) {
-  const age=effectAge(attack);
-  const distance=Math.hypot(dx,dy)||1;
-  const horizontal=Math.abs(dx)<.001?1:Math.sign(dx);
-  const windup=Math.sin(Math.PI*Math.min(1,age/.32));
-  const strike=Math.sin(Math.PI*Math.max(0,(age-.25)/.75));
-  const blade=bladeSweeps[attack.motion];
-  const travel=strike*(blade || attack.motion==='Q'?10:4)-windup*3;
-  const rise=attack.motion==='u'?7:attack.motion==='d'?-2:attack.motion==='Q'?0:blade?2:4;
-  context.translate(x+dx/distance*travel,y+dy/distance*travel-strike*rise);
-  context.rotate(horizontal*(strike*(blade?.18:-.075)-windup*.09));
-  if(horizontal<0) context.scale(-1,1);
-}
-function drawDemonAttackFrame(context,unit,attack) {
-  if(!attack) return false;
-  const age=effectAge(attack);
-  if(age<.08 || age>=.92) return false;
+// Boot centers in the dedicated artwork, measured in source pixels before outlines.
+const demonPoseBoots={
+  0:{idle:[61,125],frames:[[82,150],[83,145],[83,150],[85,157]]},
+  6:{idle:[64,125],frames:[[80,152],[63,168],[99,141]]}
+};
+function drawPlantedAttackFrame(context,unit,attack,sprite,age,facing) {
+  const anchors=unit.star===7 && demonPoseBoots[unit.identity];
+  if(!anchors || age<.08 || age>=.92) return false;
   const pose=age<.32?1:age<.64?2:3;
-  const frame=unit.star===7 && unit.identity===0 && pose===2 && attack.motion==='s'?4:pose;
+  const frame=unit.identity===0 && pose===2 && attack.motion==='s'?4:pose;
   const key=recipeKey(unit.star,unit.identity)+':'+frame;
   const image=demonAttackImages.get(key);
   if(!image) return false;
   const {canvas,padding}=outlinedDemonImage(key,image,unit.star);
   const scale=44/128;
-  context.imageSmoothingEnabled=false;
-  context.drawImage(canvas,-(116+padding)*scale,-(182+padding)*scale,canvas.width*scale,canvas.height*scale);
+  const footLine=178+padding;
+  const [left,right]=anchors.frames[frame-1];
+  const idleBoots=anchors.idle.map(foot=>(foot/192-.5)*44);
+  const target=facing>0?idleBoots:[-idleBoots[1],-idleBoots[0]];
+  const footScale=(target[1]-target[0])/((right-left)*scale);
+  const naturalLeft=-(116+padding)*scale;
+  const plantedLeft=target[0]-(left+padding)*scale*footScale;
+  const end=Math.round(footLine-4/scale);
+  context.save();
+  context.scale(facing,1);
+  for(let row=0;row<end;row+=4) {
+    const next=Math.min(row+4,end);
+    const height=(footLine-(row+next)/2)*scale;
+    const weight=Math.max(0,Math.min(1,(21-height)/15));
+    const width=canvas.width*scale*(1+(footScale-1)*weight);
+    const left=naturalLeft+(plantedLeft-naturalLeft)*weight;
+    const bottom=next===end?-4:(next-footLine)*scale;
+    drawGroundedBand(context,canvas,row,next-row,left,(row-footLine)*scale,width,bottom);
+  }
+  context.restore();
+  drawGroundedBoots(context,sprite,unit,4);
   return true;
 }
 function paintDemonAttack(context,x,y,targetX,targetY,shot) {
@@ -2158,8 +2218,8 @@ function paintBoard(now) {
       ctx.strokeStyle=rankColors[unit.star-1];ctx.lineWidth=1.5;ctx.stroke();
       if(unit.star>=6) paintAura(x,y,unit.star);
       const attack=motions.get(cell);
-      const idle=Math.round(Math.sin(now/270+i*1.7)*(unit.star>=4?2:1.5));
-      paintBoardDemon(unit,x,y+16+idle,attack,now);
+      paintCombatDemon(ctx,unit,x,y+16,attack,now,
+        attack?attack.to.x-attack.from.x:0,attack?attack.to.y-attack.from.y:0);
       paintRankBadge(x,y+18,unit.star,now);
     } else {
       const size=enemySpriteSize(enemy);
@@ -2307,15 +2367,7 @@ function paintExpedition(now) {
     arena.fillStyle='#433341';arena.fillRect(99,13,51,4);
     arena.fillStyle='#ff859d';arena.fillRect(99,13,Math.round(zone.hp/boss.hp*51),4);
   }
-  if(zone.unit) {
-    arena.save();
-    const y=72+Math.round(Math.sin(now/180));
-    if(zone.attack) transformAttack(arena,47,y,zone.attack,1,0);
-    else arena.translate(47,y);
-    if(zone.unit.star===7) paintSeventhAura(arena,zone.unit.identity,now);
-    if(!drawDemonAttackFrame(arena,zone.unit,zone.attack)) drawDemon(arena,zone.unit,0,0,3);
-    arena.restore();
-  }
+  if(zone.unit) paintCombatDemon(arena,zone.unit,47,72,zone.attack,now,76,-30);
   if(zone.attack) {
     const age=effectAge(zone.attack);
     paintDemonAttack(arena,47,72,123,42,zone.attack);
