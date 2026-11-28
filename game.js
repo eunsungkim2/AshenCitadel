@@ -1214,12 +1214,10 @@ function renderUI() {
     enemyList.replaceChildren(...[...encounters].map(key=>{
       const entry=document.createElement('li');
       const [kind,id]=key.split(':');
-      const type=kind==='quest'?activeMissions[id].type:kind;
-      const sprite=angelSprite(type);
       const icon=document.createElement('canvas');
-      icon.width=32; icon.height=28;
+      icon.width=96; icon.height=96;
       icon.setAttribute('aria-hidden','true');
-      drawAngel(icon.getContext('2d'),type,16-sprite[0].length,14-sprite.length,2);
+      drawAngel(icon.getContext('2d'),key,48,92,88);
       entry.append(icon,document.createTextNode(kind==='boss'?'보스 · '+bossPatterns[id].label:kind==='event'?'특수 보스 · '+eventChallenges[id].name:
         kind==='quest'?'엘리트 · '+activeMissions[id].name:enemyTypes[kind].label));
       return entry;
@@ -1331,18 +1329,24 @@ function drawPixels(context, matrix, palette, x, y, scale) {
   }));
 }
 const demonImages=new Map();
+const angelImages=new Map();
 const outlinedDemonImages=new Map();
 
-async function loadDemonSprites() {
-  const decoded=await Promise.all(Object.entries(bundledDemonSprites).map(async ([key,encoded])=>{
+async function decodeSprites(bundle,images) {
+  const decoded=await Promise.all(Object.entries(bundle).map(async ([key,encoded])=>{
     const bytes=Uint8Array.from(atob(encoded),character=>character.charCodeAt(0));
     const image=await createImageBitmap(new Blob([bytes],{type:'image/png'}));
     return [key,image];
   }));
-  for(const [key,image] of decoded) demonImages.set(key,image);
-  if(demonImages.size!==Array.from({length:maxStar},(_,i)=>identityCount(i+1)).reduce((sum,n)=>sum+n,0)) {
-    throw new Error('Incomplete demon sprite bundle');
-  }
+  for(const [key,image] of decoded) images.set(key,image);
+}
+async function loadUnitSprites() {
+  await Promise.all([decodeSprites(bundledDemonSprites,demonImages),decodeSprites(bundledAngelSprites,angelImages)]);
+  const angelKeys=['normal','swift','tank','swarm','mission',
+    ...bossPatterns.map((_,i)=>'boss:'+i),...activeMissions.map((_,i)=>'quest:'+i),...eventChallenges.map((_,i)=>'event:'+i)];
+  if(demonImages.size!==Array.from({length:maxStar},(_,i)=>identityCount(i+1)).reduce((sum,n)=>sum+n,0) ||
+      angelKeys.some(key=>!angelImages.has(key))) throw new Error('Incomplete unit sprite bundle');
+  delete $('enemyCodex').dataset.count;
   for(const entries of recipeButtons.values()) entries.forEach(entry=>entry.paintPortrait());
   delete $('unitStats').dataset.unit;
   delete $('codexStats').dataset.unit;
@@ -1521,17 +1525,18 @@ const tileScale=48, boardLeft=52, boardTop=72;
 const project=(x,y)=>({x:boardLeft+x*tileScale,y:boardTop+y*tileScale});
 const portalSprite=['....oo....','..oaaaao..','.oaaccaao.','oacbbbcaoo','oacbhhcaoo','oacbhhcaoo','oacbbbcaao','.oacccaao.','..oooooo..'];
 const castleSprite=['oo..oo..oo','oo..oo..oo','oaooaaooao','oahhaahhao','oaaaccaaao','oaacbbcaao','oaabbbaaao','oooooooooo'];
-const enemySprites={
-  normal:['....ccc....','...c...c...','....ooo....','a..ohhho..a','aa.ohcho.aa','aha.obooaha','aahaabaaaha','.aabbbbaa..','..aabbaa...','...obobo...','..oo...oo..'],
-  mission:['....ccccc....','...c.....c...','.....ooo.....','a...ohhho...a','aa..ohcho..aa','aha..obo..aha','aahaaabaaahaa','.aahaabaaaha.','..aaababa....','...obbbbo....','...ob..bo....','..ooo..ooo...'],
-  boss:['.....ccccc.....','....c.....c....','a.....ccc.....a','aa...ohhho...aa','aha..ohcho..aha','aaha..obo..ahaa','aahaaabaaaahaaa','.aahaabbbaahaa.','..aahaababaa...','...aaabcbba....','....obbbbbo....','....obb.bbo....','...ooo...ooo...'],
-};
-const angelColors={normal:'#d4bc81',swift:'#b2d9ef',tank:'#a8b5d2',swarm:'#e2bdd8',mission:'#e8be6b',boss:'#f0cf83',event:'#b7d8ed'};
-function angelSprite(type) {
-  return enemySprites[type==='event'?'boss':type] || enemySprites.normal;
+function angelKey(enemy) {
+  if(enemy.boss) return 'boss:'+(enemy.pattern ?? 0);
+  return enemy.challenge===undefined?enemy.type:'quest:'+enemy.challenge;
 }
-function drawAngel(context,type,x,y,scale,accent=angelColors[type]) {
-  drawPixels(context,angelSprite(type),{o:'#252139',a:accent,b:'#66547d',c:'#fff0ad',h:'#faf1dd'},x,y,scale);
+function drawAngel(context,key,x,y,size,filter='none') {
+  const image=angelImages.get(key);
+  if(!image) return;
+  context.save();
+  context.imageSmoothingEnabled=false;
+  if(filter!=='none') context.filter=filter;
+  context.drawImage(image,x-size/2,y-size*122/128,size,size);
+  context.restore();
 }
 function paintEffect(shot) {
   const {to,from,effect,role,support,time,burstRadius}=shot;
@@ -1810,14 +1815,12 @@ function paintBoard(now) {
       ctx.fillStyle=pixelColors[unit.star-1];
       for(let i=0;i<unit.star;i++) ctx.fillRect(x-2*unit.star+i*4,y+15,3,3);
     } else {
-      const scale=enemy.boss?4:enemy.type==='tank'?3:2;
-      const type=enemy.boss?'boss':enemy.type;
-      const sprite=angelSprite(type);
+      const size=enemy.boss?58:enemy.type==='tank'?37:enemy.type==='swarm'?26:32;
       const stride=enemy.stun>0?0:Math.round(Math.sin(enemy.progress*9)*(enemy.boss?2:1.5));
-      const width=scale*sprite[0].length, top=y-Math.round(scale*sprite.length*.65)+stride, left=x-Math.floor(width/2);
-      const a=enemy.stun>0?'#f7dd93':enemy.slow>0?'#679ac1':enemy.shield>0?'#9de5ed':
-        enemy.pattern===1&&enemy.patternTriggered?'#e95569':angelColors[type];
-      drawAngel(ctx,type,left,top,scale,a);
+      const foot=y+10+stride, top=foot-size, width=size*.72, left=x-width/2;
+      const filter=enemy.stun>0?'brightness(1.55)':enemy.slow>0?'saturate(.55) brightness(1.14)':
+        enemy.shield>0?'brightness(1.25)':'none';
+      drawAngel(ctx,angelKey(enemy),x,foot,size,filter);
       ctx.fillStyle='#231925';ctx.fillRect(left,top-5,width,3);
       ctx.fillStyle='#ff8e86';ctx.fillRect(left,top-5,Math.round(width*Math.max(0,enemy.hp/enemy.max)),3);
     }
@@ -1951,7 +1954,7 @@ function paintExpedition(now) {
   arena.fillStyle='#21172b';arena.fillRect(0,0,168,88);
   arena.fillStyle='#50355e';arena.fillRect(9,70,150,3);
   if(boss) {
-    drawAngel(arena,'event',95,18,4);
+    drawAngel(arena,'event:'+zone.index,124,72,57);
     arena.fillStyle='#433341';arena.fillRect(99,13,51,4);
     arena.fillStyle='#ff859d';arena.fillRect(99,13,Math.round(zone.hp/boss.hp*51),4);
   }
@@ -2125,11 +2128,11 @@ for(let star=1;star<=maxStar;star++) for(let identity=0;identity<identityCount(s
 }
 $('codexUnit').onchange=()=>mark();
 reset();
-loadDemonSprites().then(()=>{
+loadUnitSprites().then(()=>{
   $('play').disabled=false;
 }).catch(error=>{
-  console.error('Failed to load demon sprites',error);
-  $('spriteStatus').textContent='악마 이미지를 불러오지 못했습니다. 최신 프로젝트 파일을 확인해 주세요.';
+  console.error('Failed to load unit sprites',error);
+  $('spriteStatus').textContent='유닛 이미지를 불러오지 못했습니다. 최신 프로젝트 파일을 확인해 주세요.';
   $('spriteStatus').hidden=false;
 });
 let last=0, frameTime=0, lastCountdown=-1, lastPaint=-Infinity;

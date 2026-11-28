@@ -127,7 +127,7 @@ dialog:has(.research-tree){width:min(760px,94vw);max-width:none}
 @media(max-width:530px){aside{grid-template-columns:1fr}.stats,.controls{gap:8px 12px;font-size:.9rem}.phase{font-size:.8rem}}
 
 #enemyCodex li{display:flex;align-items:center;gap:6px}
-#enemyCodex canvas{flex:none;image-rendering:pixelated}
+#enemyCodex canvas{flex:none;width:48px;height:48px;image-rendering:pixelated}
 
 #codexStats .profile-card{grid-template-columns:80px 1fr}
 #codexStats .profile-card canvas{width:80px;height:80px}
