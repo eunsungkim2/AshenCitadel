@@ -1297,7 +1297,6 @@ function renderUI() {
     },!ready));
   }
 }
-const pixelColors = ['#ae899c','#ff995d','#ffb988','#ddcbff','#ffe481','#ffab99','#fff3aa'];
 const rankColors=['#abb0ba','#fff9ee','#76d99b','#67b5ff','#b684f6','#ffd160','#ff5e61'];
 function drawPixels(context, matrix, palette, x, y, scale) {
   const detail=scale/3;
@@ -1529,13 +1528,36 @@ function angelKey(enemy) {
   if(enemy.boss) return 'boss:'+(enemy.pattern ?? 0);
   return enemy.challenge===undefined?enemy.type:'quest:'+enemy.challenge;
 }
-function drawAngel(context,key,x,y,size,filter='none') {
+function drawAngel(context,key,x,y,size,filter='none',stride=null) {
   const image=angelImages.get(key);
   if(!image) return;
   context.save();
   context.imageSmoothingEnabled=false;
   if(filter!=='none') context.filter=filter;
-  context.drawImage(image,x-size/2,y-size*122/128,size,size);
+  context.translate(x,y);
+  if(stride===null) {
+    context.drawImage(image,-size/2,-size*122/128,size,size);
+  } else {
+    const swing=Math.sin(stride);
+    context.translate(0,-Math.abs(swing)*size*.042);
+    context.rotate(swing*.065);
+    const split=Math.round(image.height*.72);
+    const torso=split*size/image.height;
+    const legHeight=size-torso;
+    const top=-size*122/128;
+    context.drawImage(image,0,0,image.width,split,-size/2,top,size,torso);
+    // Shear each lower half from the hip line so the two feet alternate.
+    for(const side of [-1,1]) {
+      const sourceLeft=side===-1?0:Math.floor(image.width/2);
+      const sourceWidth=side===-1?Math.floor(image.width/2):image.width-sourceLeft;
+      const step=swing*side;
+      context.save();
+      context.translate(side===-1?-size/2:0,top+torso);
+      context.transform(1,0,step*.30,1-Math.max(0,step)*.17,0,0);
+      context.drawImage(image,sourceLeft,split,sourceWidth,image.height-split,0,0,size/2,legHeight);
+      context.restore();
+    }
+  }
   context.restore();
 }
 function paintEffect(shot) {
@@ -1776,6 +1798,47 @@ function makeGround() {
     ctx.fillStyle=color;ctx.font='bold 16px system-ui';ctx.textAlign='center';ctx.fillText(text,p.x,p.y-34);
   }
 }
+function paintRankStar(x,y,radius,color) {
+  ctx.beginPath();
+  for(let point=0;point<10;point++) {
+    const angle=point*Math.PI/5-Math.PI/2;
+    const length=point%2?radius*.46:radius;
+    const px=x+Math.cos(angle)*length,py=y+Math.sin(angle)*length;
+    if(point===0) ctx.moveTo(px,py);
+    else ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+  ctx.lineWidth=1.3;ctx.strokeStyle='#211627';ctx.stroke();
+  ctx.fillStyle=color;ctx.fill();
+}
+function paintRankBadge(x,y,star,now) {
+  const color=rankColors[star-1];
+  if(star<=5) {
+    for(let i=0;i<star;i++) paintRankStar(x+(i-(star-1)/2)*6,y,3.2,color);
+    return;
+  }
+  ctx.save();
+  ctx.strokeStyle=color;
+  ctx.lineWidth=1.25;
+  if(star===6) {
+    ctx.beginPath();
+    ctx.ellipse(x,y,10,3.8,-.23,0,Math.PI*2);
+    ctx.stroke();
+  } else {
+    ctx.globalAlpha=.68+.32*Math.sin(now/150)**2;
+    ctx.beginPath();
+    for(const side of [-1,1]) {
+      ctx.moveTo(x+side*7,y+2);
+      ctx.lineTo(x+side*12,y);
+      ctx.lineTo(x+side*8,y-3);
+      ctx.moveTo(x+side*9,y+4);
+      ctx.lineTo(x+side*14,y+2);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  paintRankStar(x,y,star===7?6.4:5.4,color);
+}
 function paintBoard(now) {
   ctx.clearRect(0,0,boardWidth,boardHeight);
   for(let i=0;i<cells.length;i++) {
@@ -1812,15 +1875,14 @@ function paintBoard(now) {
       const attack=motions.get(cell);
       const idle=Math.round(Math.sin(now/270+i*1.7)*(unit.star>=4?2:1.5));
       paintBoardDemon(unit,x,y+16+idle,attack);
-      ctx.fillStyle=pixelColors[unit.star-1];
-      for(let i=0;i<unit.star;i++) ctx.fillRect(x-2*unit.star+i*4,y+15,3,3);
+      paintRankBadge(x,y+18,unit.star,now);
     } else {
       const size=enemy.boss?58:enemy.type==='tank'?37:enemy.type==='swarm'?26:32;
-      const stride=enemy.stun>0?0:Math.round(Math.sin(enemy.progress*9)*(enemy.boss?2:1.5));
-      const foot=y+10+stride, top=foot-size, width=size*.72, left=x-width/2;
+      const stride=enemy.stun>0?null:enemy.progress*(enemy.boss?11:17);
+      const foot=y+10, top=foot-size, width=size*.72, left=x-width/2;
       const filter=enemy.stun>0?'brightness(1.55)':enemy.slow>0?'saturate(.55) brightness(1.14)':
         enemy.shield>0?'brightness(1.25)':'none';
-      drawAngel(ctx,angelKey(enemy),x,foot,size,filter);
+      drawAngel(ctx,angelKey(enemy),x,foot,size,filter,stride);
       ctx.fillStyle='#231925';ctx.fillRect(left,top-5,width,3);
       ctx.fillStyle='#ff8e86';ctx.fillRect(left,top-5,Math.round(width*Math.max(0,enemy.hp/enemy.max)),3);
     }
