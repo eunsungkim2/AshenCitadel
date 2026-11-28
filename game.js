@@ -1503,7 +1503,7 @@ function prepareBoard() {
   ctx.scale(sceneResolution,sceneResolution);
   makeGround();
 }
-function paintBoardDemon(unit,x,y,attack) {
+function paintBoardDemon(unit,x,y,attack,now=0) {
   const key=recipeKey(unit.star,unit.identity);
   let sprite=demonCache.get(key);
   if(!sprite) {
@@ -1517,6 +1517,7 @@ function paintBoardDemon(unit,x,y,attack) {
   ctx.save();
   if(attack) transformAttack(ctx,x,y,attack,attack.to.x-attack.from.x,attack.to.y-attack.from.y);
   else ctx.translate(x,y);
+  if(unit.star===7) paintSeventhAura(ctx,unit.identity,now);
   ctx.drawImage(sprite,-32,-52,64,60);
   ctx.restore();
 }
@@ -1672,6 +1673,47 @@ function paintSkillImpact(context,x,y,shot,age,area) {
     }
     context.closePath();
     context.stroke();
+  }
+  context.restore();
+}
+// The palette follows the in-game identity order, including the two special lineages.
+const seventhAuraColors=[
+  '#ff542b','#aca3ed','#ffe4a0','#ffc146','#ff4d99','#e87d46','#70ed78','#aa67ff','#70e6d7'
+];
+const reducedAuraMotion=matchMedia('(prefers-reduced-motion: reduce)');
+function paintSeventhAura(context,identity,now) {
+  const color=seventhAuraColors[identity];
+  const time=reducedAuraMotion.matches?0:now/460;
+  const gradient=context.createLinearGradient(0,-4,0,-64);
+  gradient.addColorStop(0,color+'3d');
+  gradient.addColorStop(.36,color+'9f');
+  gradient.addColorStop(.73,color+'5e');
+  gradient.addColorStop(1,color+'00');
+
+  context.save();
+  context.fillStyle=gradient;
+  for(const side of [-1,1]) {
+    for(let ribbon=0;ribbon<3;ribbon++) {
+      const wave=time+ribbon*1.7+identity*.49+side;
+      const base=side*(10+ribbon*5);
+      const tip=base+side*4+Math.sin(wave)*6;
+      const height=47+ribbon*5+Math.cos(wave)*5;
+      const sway=Math.sin(wave+.9)*6;
+      context.beginPath();
+      context.moveTo(base,-5);
+      context.bezierCurveTo(base+side*17,-22,base+side*4+sway,-height*.67,tip,-height);
+      context.bezierCurveTo(base+sway,-height*.66,base+side*7,-25,base-side*4,-7);
+      context.closePath();
+      context.fill();
+    }
+  }
+  context.fillStyle=color;
+  for(let i=0;i<6;i++) {
+    const rise=(time*.26+i/6)%1;
+    const side=i%2===0?-1:1;
+    context.globalAlpha=.56*(1-rise);
+    const x=side*(18+Math.sin(i+rise*5)*6);
+    context.fillRect(Math.round(x),Math.round(-13-rise*46),2,2);
   }
   context.restore();
 }
@@ -1874,7 +1916,7 @@ function paintBoard(now) {
       if(unit.star>=6) paintAura(x,y,unit.star);
       const attack=motions.get(cell);
       const idle=Math.round(Math.sin(now/270+i*1.7)*(unit.star>=4?2:1.5));
-      paintBoardDemon(unit,x,y+16+idle,attack);
+      paintBoardDemon(unit,x,y+16+idle,attack,now);
       paintRankBadge(x,y+18,unit.star,now);
     } else {
       const size=enemy.boss?58:enemy.type==='tank'?37:enemy.type==='swarm'?26:32;
@@ -2023,10 +2065,10 @@ function paintExpedition(now) {
   if(zone.unit) {
     arena.save();
     const y=72+Math.round(Math.sin(now/180));
-    if(zone.attack) {
-      transformAttack(arena,47,y,zone.attack,1,0);
-      drawDemon(arena,zone.unit,0,0,3);
-    } else drawDemon(arena,zone.unit,47,y,3);
+    if(zone.attack) transformAttack(arena,47,y,zone.attack,1,0);
+    else arena.translate(47,y);
+    if(zone.unit.star===7) paintSeventhAura(arena,zone.unit.identity,now);
+    drawDemon(arena,zone.unit,0,0,3);
     arena.restore();
   }
   if(zone.attack) {
