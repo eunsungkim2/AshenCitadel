@@ -847,7 +847,7 @@ function bossTimedOut() {
   startWave();
   mark(round+'라운드 보스 제한시간 초과 · 보상 없이 다음 웨이브 시작');
 }
-function relicCard(id) {
+function relicCard(id,ownership) {
   const relic=relicCatalog[id];
   const card=document.createElement('span');
   card.className='relic-card';
@@ -860,6 +860,12 @@ function relicCard(id) {
   const effect=document.createElement('small');
   effect.textContent=relic.effect;
   description.append(title,effect);
+  if(ownership!==undefined) {
+    const status=document.createElement('small');
+    status.className='relic-ownership';
+    status.textContent=ownership>0?'현재 보유 ×'+ownership:'미보유';
+    description.append(status);
+  }
   card.append(icon,description);
   return card;
 }
@@ -1289,7 +1295,19 @@ function renderUI() {
   $('gamble').disabled=!canGamble();
   $('gambleResult').textContent=game.gambleResult?'최근 결과 · '+game.gambleResult:'준비 시간에 이용할 수 있습니다.';
   const relicBox=$('relics');
-  const relicState=game.relics.join(',')+':'+ready;
+  const ranks=game.relics.join(',');
+  const relicCodex=$('relicCodex');
+  if(relicCodex.dataset.ranks!==ranks) {
+    relicCodex.dataset.ranks=ranks;
+    const total=game.relics.reduce((sum,rank)=>sum+rank,0);
+    $('relicCodexSummary').textContent='유물 목록 · '+relicCatalog.length+'종 · 현재 보유 '+total+'개';
+    relicCodex.replaceChildren(...relicCatalog.map((_,id)=>{
+      const entry=document.createElement('li');
+      entry.append(relicCard(id,relicRank(id)));
+      return entry;
+    }));
+  }
+  const relicState=ranks+':'+ready;
   if(relicBox.dataset.state!==relicState) {
     relicBox.dataset.state=relicState;
     relicBox.replaceChildren();
@@ -2251,7 +2269,7 @@ $('play').onclick=beginGame;
 $('homeRecords').onclick=showRecords;
 $('homeLegacy').onclick=legacy;
 $('homeCodex').onclick=()=>{
-  showDialog('악마 · 적 도감','획득·합성 기록과 전투에서 만난 적을 확인할 수 있습니다.',[['닫기',closeDialog]]);
+  showDialog('악마 · 적 · 유물 도감','악마 기록, 전투에서 만난 적, 현재 판의 유물 보유 현황을 확인할 수 있습니다.',[['닫기',closeDialog]]);
   $('dialogBody').insertBefore($('codexContent'),$('dialogBody').lastElementChild);
   mark();
 };

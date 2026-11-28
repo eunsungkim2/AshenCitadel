@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="assets/demon-sprites.js" defer></script>
   <script src="assets/angel-sprites.js" defer></script>
-  <script src="game.js?v=9" defer></script>
+  <script src="game.js?v=10" defer></script>
 </head>
 <body>
   <section id="home" class="home">
@@ -21,7 +21,7 @@
       <p id="spriteStatus" role="status" hidden></p>
       <button id="homeLegacy">계승</button>
       <button id="options">옵션</button>
-      <button id="homeCodex">악마 · 적 도감</button>
+      <button id="homeCodex">악마 · 적 · 유물 도감</button>
       <button id="homeRecords">플레이 기록</button>
     </div>
   </section>
@@ -55,7 +55,7 @@
     <aside>
       <section class="panel"><details name="side-panel" id="summonPanel"><summary>악마 소환 · 보상 배치</summary><button id="draw" class="primary wide" aria-keyshortcuts="Q"></button><p id="drawHint"></p><p id="odds"></p><div id="reserve"></div><button id="place" aria-keyshortcuts="W">보상 악마 배치 · W</button></details></section>
       <section class="panel"><details name="side-panel" id="towerPanel"><summary id="towerSummary">선택한 타워</summary><div id="selected"></div><div id="actions"></div><div id="unitStats"></div></details></section>
-      <section class="panel"><details name="side-panel"><summary>악마 · 적 도감</summary><div id="codexAnchor"><div id="codexContent"><label>악마 <select id="codexUnit"></select></label><p id="codexDiscovery"></p><div id="codexStats"></div><details><summary id="enemyCount">만난 적</summary><ul id="enemyCodex"></ul></details></div></div></details></section>
+      <section class="panel"><details name="side-panel"><summary>악마 · 적 · 유물 도감</summary><div id="codexAnchor"><div id="codexContent"><label>악마 <select id="codexUnit"></select></label><p id="codexDiscovery"></p><div id="codexStats"></div><details><summary id="enemyCount">만난 적</summary><ul id="enemyCodex"></ul></details><details><summary id="relicCodexSummary">유물 목록</summary><ul id="relicCodex"></ul></details></div></div></details></section>
       <section class="panel"><details name="side-panel"><summary>지정 조합</summary><div id="recipes"></div></details></section>
       <section class="panel"><details name="side-panel"><summary>미션</summary><div id="activeMissions"></div><div id="missions"></div></details></section>
       <section class="panel"><details name="side-panel"><summary>유물</summary><div id="relics"></div></details></section>

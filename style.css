@@ -131,3 +131,7 @@ dialog:has(.research-tree){width:min(760px,94vw);max-width:none}
 
 #codexStats .profile-card{grid-template-columns:80px 1fr}
 #codexStats .profile-card canvas{width:80px;height:80px}
+
+#relicCodex{display:grid;gap:4px;list-style:none;padding:0;margin:8px 0}
+#relicCodex li{padding:4px 0;border-bottom:1px solid var(--edge)}
+#relicCodex .relic-ownership{color:var(--ember)}
