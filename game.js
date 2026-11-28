@@ -53,6 +53,8 @@ const segments = points.slice(1).map(([x,y], i) => {
 });
 const pathLength = segments.reduce((sum, segment) => sum + segment.length, 0);
 const maxRound=150;
+const enemyHealthMultiplier=1.5;
+const legacyDefeatsPerPoint=2;
 const bossLimit=28;
 const difficultyNames=['이지','노말','하드'];
 const difficultyIndex=round=>Math.floor((round-1)/50);
@@ -208,7 +210,7 @@ const relicRank=id=>game.relics[id];
 const maxLife=()=>30+relicRank(4)*2;
 let profile;
 try { profile = JSON.parse(localStorage.getItem('ashen-citadel-profile')) || {}; } catch { profile = {}; }
-profile = { essence:0, best:0, bestScore:0, wealth:0, frost:0, spark:0, choice:0, pulse:0, auto:false, sound:true,
+profile = { essence:0, legacyDefeats:0, best:0, bestScore:0, wealth:0, frost:0, spark:0, choice:0, pulse:0, auto:false, sound:true,
   crafted:[], discovered:[], encounters:[], runs:[], ...profile };
 function currentRosterKey(key) {
   const [star,identity]=key.split(':').map(Number);
@@ -637,7 +639,7 @@ function canResearch() {
 }
 function legacy() {
   const count=researchedCount();
-  showDialog('계승 연구','계승 포인트 '+profile.essence+' · 연구 '+count+'/'+researchLimit+
+  showDialog('계승 연구','계승 포인트 '+profile.essence+' · 보스 격파 진행 '+profile.legacyDefeats+'/'+legacyDefeatsPerPoint+' · 연구 '+count+'/'+researchLimit+
     ' · 최고 '+profile.best+'라운드 / '+profile.bestScore.toLocaleString('ko-KR')+'점'+
     (count>researchLimit?' · 기존 연구가 새 한도를 초과했습니다. 초기화 후 재분배하세요.':
       canResearch()?'':' · 새 게임 시작 전이나 종료 후에 변경할 수 있습니다.'),[],true);
@@ -762,7 +764,7 @@ const eventChallenges=[
   {name:'붉은 감옥의 주인',round:65,hp:33000,gold:90},
   {name:'망각의 거인',round:95,hp:64000,gold:112},
   {name:'심연의 옥좌',round:125,hp:110000,gold:139}
-];
+].map(boss=>({...boss,hp:boss.hp*enemyHealthMultiplier}));
 function sendExpedition() {
   const zone=game.expedition, boss=eventChallenges[zone.index];
   const unit=game.board[game.selected];
@@ -796,15 +798,15 @@ function stepExpedition(dt) {
   zone.hp=Math.max(0,zone.hp-damage);
   if(zone.hp===0) {
     game.gold+=boss.gold;
-    grantLegacyPoint();
+    const legacyReward=recordLegacyDefeat();
     zone.index++;
     zone.hp=eventChallenges[zone.index]?.hp ?? 0;
-    mark(boss.name+' 격파 · 영혼 '+boss.gold+' 및 계승 포인트 1 획득');
+    mark(boss.name+' 격파 · 영혼 '+boss.gold+' 획득 · '+legacyReward);
   } else mark();
 }
 function spawnMission(index) {
   const mission=activeMissions[index], state=game.active[index];
-  const hp=mission.hp+Math.max(0,game.round-mission.unlock)*3.6;
+  const hp=(mission.hp+Math.max(0,game.round-mission.unlock)*3.6)*enemyHealthMultiplier;
   const lanes=game.enemies.filter(enemy=>enemy.challenge===index).map(enemy=>enemy.lane);
   const lane=[0,-1,1].find(offset=>!lanes.includes(offset)) ?? 0;
   game.enemies.push({...position(0),progress:0,hp,max:hp,type:mission.type,challenge:index,lane,slow:0,stun:0,curse:0,shield:0});
@@ -845,12 +847,19 @@ function grantBossRewards() {
   if(game.bossRewarded) return;
   game.bossRewarded=true;
   awardTicket(bossTicketTier(game.round));
-  grantLegacyPoint();
+  mark('라운드 보스 격파 · '+recordLegacyDefeat());
 }
-function grantLegacyPoint() {
+function recordLegacyDefeat() {
+  profile.legacyDefeats++;
+  if(profile.legacyDefeats<legacyDefeatsPerPoint) {
+    save();
+    return '계승 포인트 진행 '+profile.legacyDefeats+'/'+legacyDefeatsPerPoint;
+  }
+  profile.legacyDefeats=0;
   profile.essence++;
   game.researchEarned++;
   save();
+  return '계승 포인트 1 획득';
 }
 function finishWave(round) {
   if (round%50===0 && game.bossDefeated) {
@@ -957,7 +966,7 @@ function spawn() {
   const tier=difficultyIndex(round);
   const durability=[.85,1.12,1.36][tier];
   const bossAdjustment=boss?(round===maxRound?.82:[.78,1.10,1.06][tier]):1;
-  const hp=(12+threat*1.7+threat*threat*.19)*enemyTypes[entry.type].hp*durability*bossAdjustment;
+  const hp=(12+threat*1.7+threat*threat*.19)*enemyTypes[entry.type].hp*durability*bossAdjustment*enemyHealthMultiplier;
   game.enemies.push({...position(0),hp,max:hp,boss,mission,type:entry.type,pattern:boss?game.plan.pattern:null,
     progress:0,stun:0,slow:0,curse:0,shield:0,patternTriggered:false});
   recordEncounter(boss?'boss:'+game.plan.pattern:entry.type);

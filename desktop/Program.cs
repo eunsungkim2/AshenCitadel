@@ -201,18 +201,18 @@ internal sealed class GameWindow : Form
             Math.random=()=>0;
             game.round=50; game.bossDefeated=true; completeWave();
             if(game.phase!=='relic' || !document.querySelector('.reward-choice canvas') || !claimReward() || game.relics[0]!==1) return 'boss relic cards';
-            if (game.round!==51 || game.phase!=='ready' || profile.essence!==1 || game.tickets[3]!==1 || document.getElementById('dialog').open)
+            if (game.round!==51 || game.phase!=='ready' || (profile.essence!==0 || profile.legacyDefeats!==1) || game.tickets[3]!==1 || document.getElementById('dialog').open)
                 return 'uninterrupted normal transition';
             closeDialog();
             game.round=100; game.bossDefeated=true; game.bossRewarded=false; completeWave();
             if(!claimReward()) return 'normal reward';
-            if (game.round!==101 || game.phase!=='ready' || profile.essence!==2 || document.getElementById('dialog').open)
+            if (game.round!==101 || game.phase!=='ready' || (profile.essence!==1 || profile.legacyDefeats!==0) || document.getElementById('dialog').open)
                 return 'uninterrupted hard transition';
             closeDialog();
             game.round=150; game.bossDefeated=true; game.bossRewarded=false; game.played=3723; completeWave();
             if(!claimReward()) return 'hard reward';
             Math.random=originalRandom;
-            if (game.phase!=='over' || profile.essence!==3 || profile.runs[0].seconds!==3723 ||
+            if (game.phase!=='over' || (profile.essence!==1 || profile.legacyDefeats!==1) || profile.runs[0].seconds!==3723 ||
                 !document.getElementById('dialogBody').textContent.includes('01:02:03')) return 'hard finish record';
             showRecords();
             if(!document.getElementById('dialogBody').textContent.includes('01:02:03')) return 'record history';
